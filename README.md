@@ -30,7 +30,7 @@ Defined upfront to avoid p-hacking:
 | Metric | Baseline | Target |
 |--------|----------|--------|
 | ROC-AUC | 0.93 | > 0.93 |
-| Brier Score | 0.065 | < 0.065 |
+| Brier Score | 0.059 | < 0.059 |
 
 ## Project Structure
 
@@ -41,7 +41,9 @@ Defined upfront to avoid p-hacking:
 │       ├── qualifying.csv
 │       ├── results.csv
 │       └── constructors.csv
-├── F1Predictor.ipynb
+├── notebooks/
+│   ├── EDA.ipynb
+│   └── Heuristic_Baseline.ipynb
 └── README.md
 ```
 
