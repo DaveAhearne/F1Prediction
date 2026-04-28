@@ -15,7 +15,7 @@ Using historical race data from 1950 to present, we train a classification model
 
 ## Methodology
 1. Establish heuristic baselines from qualifying position data and rolling driver form
-2. Train a baseline model on raw features
+2. Train a baseline model on raw features with data validation
 3. Iteratively engineer features and measure improvement
 4. Validate final model against 2025 season results
 
@@ -51,6 +51,31 @@ Two baselines were evaluated on 2025 race results:
 | Qualifying position | 0.93 | 0.059 |
 | Rolling 5-race podium rate | 0.79 | 0.12 |
 
+### LightGBM Baseline
+A binary LightGBM classifier trained on a minimal feature set to establish an ML baseline before feature engineering begins. Key decisions made here:
+
+- **Training data**: 1990–2024, filtered before applying Pandera validation to avoid spurious failures from pre-1990 recording inconsistencies (duplicate raceId/driverId pairs, non-standard statuses)
+- **Data validation**: Pandera `DataFrameSchema` (`RaceResultSchema`) validates the training frame post-filter, using a warning-only approach — production pipelines would hard-stop on failures
+- **Leakage discipline**: Rolling aggregations use `shift(1)` to ensure only prior-race data is visible at training time
+- **Evaluation metrics**: Brier score (primary — measures calibration of predicted probabilities) and ROC-AUC (secondary — measures driver ranking quality), both defined before training to avoid unconscious cherry-picking
+- **NaN handling**: NaN values in rolling rate features are primarily a cold-start issue for debut races, not DNF artefacts
+
+### Planned Feature Engineering (Part 3)
+The next iteration adds a richer feature set before re-training:
+
+- Driver rolling podium rate at 3, 5, and 10-race windows
+- Constructor rolling podium rate at 3, 5, and 10-race windows
+- Mechanical DNF rate (driver and constructor)
+- Driver age and career race count
+- Circuit-specific podium rate (driver and constructor)
+- Championship standings position
+- Regulation era encoding
+- Circuit type (street, permanent, hybrid)
+- Grid size
+- Home race flag
+
+Walk-forward cross-validation, `circuitId` feature engineering, and class imbalance handling are acknowledged but deferred to future parts.
+
 ## Project Structure
 ```
 ├── data/
@@ -62,16 +87,18 @@ Two baselines were evaluated on 2025 race results:
 │       └── constructors.csv
 ├── notebooks/
 │   ├── EDA.ipynb
-│   └── Heuristic_Baseline.ipynb
+│   ├── Heuristic_Baseline.ipynb
+│   └── LightGBM_Baseline.ipynb
 └── README.md
 ```
 
 ## Setup
 ```bash
-pip install pandas scikit-learn lightgbm matplotlib seaborn requests
+pip install pandas scikit-learn lightgbm pandera matplotlib seaborn requests
 ```
 
 ## Results
 | Stage | ROC-AUC | Brier Score | Notes |
 |-------|---------|-------------|-------|
 | Rolling podium rate heuristic | 0.79 | 0.12 | Pre-weekend baseline, evaluated on 2025 |
+| LightGBM baseline | 0.81 | 0.12 | Minimal features, 1990–2024 training data, evaluated on 2025 |
