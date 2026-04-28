@@ -1,0 +1,8 @@
+artifact_location: file:///home/dave/Work/F1Predictor/notebooks/mlruns/403693041153043943
+creation_time: 1777370183503
+experiment_id: '403693041153043943'
+last_update_time: 1777370183503
+lifecycle_stage: active
+name: f1-podium-predictor
+trace_location: null
+workspace: default
