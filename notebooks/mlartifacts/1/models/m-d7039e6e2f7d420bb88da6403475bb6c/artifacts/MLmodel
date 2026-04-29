@@ -1,4 +1,4 @@
-artifact_path: /home/dave/Work/F1Predictor/notebooks/mlartifacts/1/models/m-f25f57a323c046359fb0f2800081f39a/artifacts
+artifact_path: /home/dave/Work/F1Predictor/notebooks/mlartifacts/1/models/m-d7039e6e2f7d420bb88da6403475bb6c/artifacts
 flavors:
   lightgbm:
     code: null
@@ -15,9 +15,9 @@ flavors:
     loader_module: mlflow.lightgbm
     python_version: 3.10.19
 mlflow_version: 3.11.1
-model_id: m-f25f57a323c046359fb0f2800081f39a
-model_size_bytes: 1738795
-model_uuid: m-f25f57a323c046359fb0f2800081f39a
+model_id: m-d7039e6e2f7d420bb88da6403475bb6c
+model_size_bytes: 1740077
+model_uuid: m-d7039e6e2f7d420bb88da6403475bb6c
 prompts: null
-run_id: a00ef762e120411e94299f5442aa60a9
-utc_time_created: '2026-04-29 15:18:26.853145'
+run_id: 1afa2542117d46ef992970cfdd68bf03
+utc_time_created: '2026-04-29 15:47:21.827123'
