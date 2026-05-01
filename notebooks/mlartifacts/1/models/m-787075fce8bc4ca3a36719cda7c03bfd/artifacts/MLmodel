@@ -1,0 +1,41 @@
+artifact_path: /home/dave/Work/F1Predictor/notebooks/mlartifacts/1/models/m-787075fce8bc4ca3a36719cda7c03bfd/artifacts
+flavors:
+  lightgbm:
+    code: null
+    data: model.pkl
+    lgb_version: 4.6.0
+    model_class: lightgbm.sklearn.LGBMClassifier
+    serialization_format: cloudpickle
+    skops_trusted_types: null
+  python_function:
+    data: model.pkl
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.lightgbm
+    python_version: 3.10.19
+is_signature_from_type_hint: false
+mlflow_version: 3.11.1
+model_id: m-787075fce8bc4ca3a36719cda7c03bfd
+model_size_bytes: 1741740
+model_uuid: m-787075fce8bc4ca3a36719cda7c03bfd
+prompts: null
+run_id: 07c477160da6476a908a8282fbd91d6f
+signature:
+  inputs: '[{"type": "long", "name": "driverId", "required": true}, {"type": "long",
+    "name": "constructorId", "required": true}, {"type": "long", "name": "circuitId",
+    "required": true}, {"type": "long", "name": "year", "required": true}, {"type":
+    "long", "name": "round", "required": true}, {"type": "double", "name": "driver_podium_rate_3",
+    "required": true}, {"type": "double", "name": "driver_podium_rate_5", "required":
+    true}, {"type": "double", "name": "driver_podium_rate_10", "required": true},
+    {"type": "double", "name": "constructor_podium_rate_3", "required": true}, {"type":
+    "double", "name": "constructor_podium_rate_5", "required": true}, {"type": "double",
+    "name": "constructor_podium_rate_10", "required": true}, {"type": "double", "name":
+    "constructor_mechanical_dnf_rate_5", "required": true}, {"type": "double", "name":
+    "driverAge", "required": true}, {"type": "long", "name": "driver_experience",
+    "required": true}, {"type": "double", "name": "driver_circuit_podium_rate", "required":
+    true}]'
+  outputs: '[{"type": "double", "name": "podium_probability", "required": true}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2026-05-01 12:24:39.581671'
