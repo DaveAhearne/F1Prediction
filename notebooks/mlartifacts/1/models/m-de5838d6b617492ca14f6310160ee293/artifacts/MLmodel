@@ -1,0 +1,23 @@
+artifact_path: /home/dave/Work/F1Predictor/notebooks/mlartifacts/1/models/m-de5838d6b617492ca14f6310160ee293/artifacts
+flavors:
+  lightgbm:
+    code: null
+    data: model.pkl
+    lgb_version: 4.6.0
+    model_class: lightgbm.sklearn.LGBMClassifier
+    serialization_format: cloudpickle
+    skops_trusted_types: null
+  python_function:
+    data: model.pkl
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.lightgbm
+    python_version: 3.10.19
+mlflow_version: 3.11.1
+model_id: m-de5838d6b617492ca14f6310160ee293
+model_size_bytes: 513139
+model_uuid: m-de5838d6b617492ca14f6310160ee293
+prompts: null
+run_id: cf5e652bd013403db43273551959e6ee
+utc_time_created: '2026-05-01 08:19:00.275766'
