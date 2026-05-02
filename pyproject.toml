@@ -1,10 +1,12 @@
 [project]
-name = "f1-predictor"
+name = "f1_predictor"
 version = "0.1.0"
 requires-python = ">=3.10"
 
 # MLflow lives here because both training and serving touch it
 dependencies = [
+    "pydantic",
+    "pydantic-settings",
     "mlflow>=2.0",
 ]
 
@@ -30,3 +32,6 @@ dev = [
     "pytest",
     "ruff",
 ]
+
+[project.scripts]
+f1_serve = "f1_predictor.serve.api:main"
