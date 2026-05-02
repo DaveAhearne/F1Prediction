@@ -1,0 +1,32 @@
+[project]
+name = "f1-predictor"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+# MLflow lives here because both training and serving touch it
+dependencies = [
+    "mlflow>=2.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+train = [
+    "lightgbm",
+    "pandas",
+    "pandera",
+    "scikit-learn",
+    "notebook",
+    "onnxmltools",
+]
+serv = [
+    "fastapi",
+    "uvicorn",
+    "onnxruntime",
+    "numpy",
+]
+dev = [
+    "pytest",
+    "ruff",
+]
