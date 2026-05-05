@@ -11,14 +11,15 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["ingest*", "src*"]
+where = ["src", "."]
+include = ["f1_predictor*", "ingest*"]
 
 [project.optional-dependencies]
 data = [
     "lakefs"
 ]
 train = [
+    "pandera[pandas]",
     "lightgbm",
     "pandas",
     "pandera",
@@ -39,4 +40,5 @@ dev = [
 
 [project.scripts]
 f1_serve = "f1_predictor.serve.api:main"
-f1-bootstrap = "ingest.bootstrap:run"
+f1_bootstrap = "ingest.bootstrap:run"
+f1_pipeline = "f1_predictor.pipelines.train_pipeline:run_pipeline"
