@@ -25,11 +25,10 @@ class F1ValidationSchema(pa.DataFrameModel):
     class Config:
         unique = ["raceId", "driverId"]
 
-def validate_data(data: pd.DataFrame) -> pd.DataFrame:
+def check_schema(data: pd.DataFrame) -> None:
     try:
         F1ValidationSchema.validate(data)
         print("Schema validation passed")
-        return data
     except pa.errors.SchemaError as e:
         print(f"Schema validation FAILED:\n{e.failure_cases}")
         raise

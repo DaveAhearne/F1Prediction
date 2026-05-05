@@ -9,7 +9,7 @@ def build_race_frame(
     circuits: pd.DataFrame,
 ) -> pd.DataFrame:
     df = pd.merge(
-        left=results[["resultId", "raceId", "driverId", "constructorId", "position", "statusId"]],
+        left=results[["resultId", "raceId", "driverId", "constructorId", "position", "statusId", "points"]],
         right=races[["raceId", "year", "round", "circuitId", "name", "date"]],
         on="raceId"
     )
