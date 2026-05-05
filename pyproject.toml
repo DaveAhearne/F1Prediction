@@ -11,9 +11,13 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["ingest*", "src*"]
 
 [project.optional-dependencies]
+data = [
+    "lakefs"
+]
 train = [
     "lightgbm",
     "pandas",
@@ -35,3 +39,4 @@ dev = [
 
 [project.scripts]
 f1_serve = "f1_predictor.serve.api:main"
+f1-bootstrap = "ingest.bootstrap:run"

@@ -102,3 +102,15 @@ pip install pandas scikit-learn lightgbm pandera matplotlib seaborn requests
 |-------|---------|-------------|-------|
 | Rolling podium rate heuristic | 0.79 | 0.12 | Pre-weekend baseline, evaluated on 2025 |
 | LightGBM baseline | 0.81 | 0.12 | Minimal features, 1990–2024 training data, evaluated on 2025 |
+
+
+
+
+---- Other notes:
+
+We're gonana use dockerized lakefs
+
+```
+docker run --pull always -p 8000:8000 treeverse/lakefs:latest \
+  run --local-settings
+```
