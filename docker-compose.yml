@@ -1,0 +1,52 @@
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.12.0-full
+    container_name: f1-mlflow
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:////mlflow/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    volumes:
+      - mlflow-data:/mlflow
+    command: mlflow server --host 0.0.0.0 --port 5000
+
+  lakefs:
+    image: treeverse/lakefs:latest
+    container_name: f1-lakefs
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - LAKEFS_AUTH_ENCRYPT_SECRET_KEY=${LAKEFS_AUTH_ENCRYPT_SECRET_KEY}
+      - LAKEFS_INSTALLATION_USER_NAME=${LAKEFS_INSTALLATION_USER_NAME}
+      - LAKEFS_INSTALLATION_ACCESS_KEY_ID=${LAKEFS_INSTALLATION_ACCESS_KEY_ID}
+      - LAKEFS_INSTALLATION_SECRET_ACCESS_KEY=${LAKEFS_INSTALLATION_SECRET_ACCESS_KEY}
+      - LAKEFS_DATABASE_TYPE=local
+      - LAKEFS_BLOCKSTORE_TYPE=local
+    volumes:
+      - lakefs-data:/lakefs
+    command: run
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/api/v1/healthcheck"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  lakefs-setup:
+    image: curlimages/curl:latest
+    depends_on:
+      lakefs:
+        condition: service_healthy
+    restart: on-failure
+    entrypoint: [
+      "sh", "-c",
+      "curl -X POST http://f1-lakefs:8000/api/v1/setup_lakefs -H 'Content-Type: application/json' -d '{\"username\":\"${LAKEFS_INSTALLATION_USER_NAME}\",\"key\":{\"access_key_id\":\"${LAKEFS_INSTALLATION_ACCESS_KEY_ID}\",\"secret_access_key\":\"${LAKEFS_INSTALLATION_SECRET_ACCESS_KEY}\"}}' && curl -X POST http://f1-lakefs:8000/api/v1/setup_comm_prefs -H 'Content-Type: application/json' -d '{\"email\":\"admin@f1predictor.com\",\"firstName\":\"Admin\",\"lastName\":\"User\",\"companyName\":\"F1Predictor\",\"featureUpdates\":false,\"securityUpdates\":false}'"
+    ]
+
+volumes:
+  mlflow-data:
+  lakefs-data:

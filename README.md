@@ -114,3 +114,19 @@ We're gonana use dockerized lakefs
 docker run --pull always -p 8000:8000 treeverse/lakefs:latest \
   run --local-settings
 ```
+
+
+```
+docker run --pull always -p 8000:8000 treeverse/lakefs:latest \
+  run --local-settings
+
+docker run --pull always \
+  -p 5000:5000 \
+  -v $(pwd)/mlflow:/mlflow \
+  ghcr.io/mlflow/mlflow:v3.12.0-full \
+  mlflow server \
+    --host 0.0.0.0 \
+    --port 5000 \
+    --backend-store-uri sqlite:////mlflow/mlflow.db \
+    --default-artifact-root /mlflow/artifacts
+```
