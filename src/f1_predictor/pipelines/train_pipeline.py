@@ -6,6 +6,7 @@ from f1_predictor.data.merge import build_race_frame
 import f1_predictor.features.constructor as constructor_features
 import f1_predictor.features.context as context_features
 import f1_predictor.features.driver as driver_features
+from f1_predictor.models.train import train
 
 def run_pipeline() -> pd.DataFrame:
     raw_df = build_race_frame(
@@ -16,6 +17,8 @@ def run_pipeline() -> pd.DataFrame:
         results=data_loaders.load_results(),
         statuses=data_loaders.load_statuses()
     )
+    
+    lakefs_commit_sha = data_loaders.get_commit_sha()
 
     cleaned_df = clean.clean_data(raw_df)
     validate.check_schema(cleaned_df)
@@ -32,5 +35,7 @@ def run_pipeline() -> pd.DataFrame:
     cleaned_df = context_features.add_circuit_type(cleaned_df)
     cleaned_df = context_features.add_regulation_era(cleaned_df)
     cleaned_df = context_features.add_grid_size(cleaned_df)
+
+    train(data=cleaned_df, commit_sha=lakefs_commit_sha)
 
     return cleaned_df

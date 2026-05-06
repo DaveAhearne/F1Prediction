@@ -12,6 +12,9 @@ _clt = Client(
 
 _branch = lakefs.Repository(settings.lakefs_repo, client=_clt).branch("main")
 
+def get_commit_sha() -> str:
+    return _branch.head.id
+
 def _read_csv(filepath: str, **kwargs) -> pd.DataFrame:
     with _branch.object(filepath).reader(mode="rb") as f:
         return pd.read_csv(io.BytesIO(f.read()), **kwargs)
@@ -23,13 +26,19 @@ def load_results() -> pd.DataFrame:
     return _read_csv("raw/results.csv", na_values="\\N")
 
 def load_drivers() -> pd.DataFrame:
-    return _read_csv("raw/drivers.csv", na_values="\\N", parse_dates=["dob"])
+    df =_read_csv("raw/drivers.csv", na_values="\\N", parse_dates=["dob"])
+    df["driverId"] = df["driverId"].astype("category")
+    return df
 
 def load_constructors() -> pd.DataFrame:
-    return _read_csv("raw/constructors.csv")
+    df = _read_csv("raw/constructors.csv")
+    df["constructorId"] = df["constructorId"].astype("category")
+    return df
 
 def load_statuses() -> pd.DataFrame:
     return _read_csv("raw/status.csv")
 
 def load_circuits() -> pd.DataFrame:
-    return _read_csv("raw/circuits.csv")
+    df = _read_csv("raw/circuits.csv")
+    df["circuitId"] = df["circuitId"].astype("category")
+    return df

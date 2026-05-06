@@ -63,7 +63,8 @@ def add_home_race(df: pd.DataFrame) -> pd.DataFrame:
         "Thai": "Thailand",
     }
     df["driver_country"] = df["nationality"].map(nationality_country_map)
-    df["is_home_race"] = (df["driver_country"] == df["country"]).astype(int)
+    df["is_home_race"] = (df["driver_country"] == df["country"]).astype("category")
+    
     df = df.drop(columns=["driver_country", "country"])
     return df
 
@@ -77,7 +78,7 @@ def add_regulation_era(df: pd.DataFrame) -> pd.DataFrame:
         "battery": range(2026, 2030),
     }.items() for year in years}
 
-    df["regulation_era"] = df["year"].map(regulation_era_map)
+    df["regulation_era"] = df["year"].map(regulation_era_map).astype("category")
     return df
 
 def add_grid_size(df: pd.DataFrame):
