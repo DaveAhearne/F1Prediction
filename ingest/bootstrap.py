@@ -5,8 +5,8 @@ from ingest.settings import settings
 def run():
     lakefsClient = Client(
         host=settings.lakefs_host,
-        username=settings.lakefs_username,
-        password=settings.lakefs_password,
+        username=settings.lakefs_installation_access_key_id,
+        password=settings.lakefs_installation_secret_access_key,
     )
 
     repo = lakefs.Repository("f1-race-data", client=lakefsClient).create(
