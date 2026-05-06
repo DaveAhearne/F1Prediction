@@ -1,3 +1,5 @@
+import warnings
+import mlflow
 import pandas as pd
 import f1_predictor.data.clean as clean
 import  f1_predictor.data.validate as validate
@@ -7,8 +9,14 @@ import f1_predictor.features.constructor as constructor_features
 import f1_predictor.features.context as context_features
 import f1_predictor.features.driver as driver_features
 from f1_predictor.models.train import train
+from f1_predictor.common.config import settings
 
-def run_pipeline() -> pd.DataFrame:
+def train_pipeline() -> pd.DataFrame:
+    warnings.filterwarnings("error", message="Hint: Inferred schema contains integer column")
+    
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    mlflow.set_experiment("f1-podium-predictor")
+    
     raw_df = build_race_frame(
         races=data_loaders.load_races(),
         circuits=data_loaders.load_circuits(),
@@ -17,7 +25,7 @@ def run_pipeline() -> pd.DataFrame:
         results=data_loaders.load_results(),
         statuses=data_loaders.load_statuses()
     )
-    
+
     lakefs_commit_sha = data_loaders.get_commit_sha()
 
     cleaned_df = clean.clean_data(raw_df)

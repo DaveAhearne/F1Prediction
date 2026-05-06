@@ -17,5 +17,9 @@ def build_race_frame(
     df = pd.merge(df, constructors[["constructorId", "name"]], on="constructorId", suffixes=("_race", "_constructor"))
     df = pd.merge(df, statuses[["statusId", "status"]], on="statusId")
     df = pd.merge(df, circuits[["circuitId", "location", "country"]], on="circuitId")
+    
+    df["driverId"] = df["driverId"].astype("category")
+    df["constructorId"] = df["constructorId"].astype("category")
+    df["circuitId"] = df["circuitId"].astype("category")
 
     return df

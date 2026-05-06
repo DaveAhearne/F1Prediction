@@ -26,7 +26,7 @@ def add_championship_position(df: pd.DataFrame) -> pd.DataFrame:
     df["driver_championship_position"] = (
         df.groupby("raceId")["driver_championship_position"]
         .transform(lambda x: x.fillna(len(x)))
-    )
+    ).astype("float64")
 
     return df
 

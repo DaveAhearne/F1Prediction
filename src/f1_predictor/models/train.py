@@ -2,14 +2,18 @@ import pandas as pd
 import mlflow
 import numpy as np
 import lightgbm as lgb
+import warnings
 from sklearn.metrics import roc_auc_score, brier_score_loss
 from mlflow.models import infer_signature
+from mlflow.data.http_dataset_source import HTTPDatasetSource
 from f1_predictor.features import features
 from datetime import datetime
 from f1_predictor.common.config import settings
 
+INTEGER_SCHEMA_WARNING = "Hint: Inferred schema contains integer column"
+
 def train(data: pd.DataFrame, commit_sha):
-    folds = generate_rolling_window_folds(data,train_window=10, val_window=1)
+    folds = generate_rolling_window_folds(data, train_window=10, val_window=1)
 
     X = data[features.MODEL_FEATURES]
     y = data["podiumFinish"]
@@ -48,21 +52,23 @@ def log_model_artifact(model, X, run_name):
         model.predict_proba(X)[:, 1],
         columns=["podium_probability"]
     )
-    signature = infer_signature(X, output_sample)
 
-    mlflow.lightgbm.log_model(model, name=run_name, signature=signature)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=INTEGER_SCHEMA_WARNING)
+        signature = infer_signature(X, output_sample)
+        mlflow.lightgbm.log_model(model, name=run_name, signature=signature)
 
 def generate_rolling_window_folds(dataframe, train_window, val_window):
-	years = sorted(dataframe["year"].unique())
+    years = sorted(dataframe["year"].unique())
 
-	folds = []
+    folds = []
 
-	for i in range(len(years) - train_window - val_window + 1):
-		train_years = years[i: i + train_window]
-		val_years = years[i + train_window: i + train_window + val_window]
-		folds.append((train_years, val_years))
-	    
-	return folds
+    for i in range(len(years) - train_window - val_window + 1):
+        train_years = years[i: i + train_window]
+        val_years = years[i + train_window: i + train_window + val_window]
+        folds.append((train_years, val_years))
+
+    return folds
 
 def train_single_fold(dataFrame: pd.DataFrame, runName: str, fold, X, y, train_years, val_years, model_params):
     train_mask = dataFrame["year"].isin(train_years)
@@ -72,16 +78,18 @@ def train_single_fold(dataFrame: pd.DataFrame, runName: str, fold, X, y, train_y
     X_val_fold,   y_val_fold   = X[val_mask],   y[val_mask]
 
     with mlflow.start_run(run_name=f"{runName}-fold-{fold}", nested=True):
-        train_dataset = mlflow.data.from_pandas(
-            dataFrame[train_mask],
-            name=f"{runName}-train-fold-{fold}",
-            targets="podiumFinish"
-        )
-        val_dataset = mlflow.data.from_pandas(
-            dataFrame[val_mask],
-            name=f"{runName}-val-fold-{fold}",
-            targets="podiumFinish"
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=INTEGER_SCHEMA_WARNING)
+            train_dataset = mlflow.data.from_pandas(
+                dataFrame[train_mask][features.MODEL_FEATURES + ["podiumFinish"]],
+                name=f"{runName}-train-fold-{fold}",
+                targets="podiumFinish"
+            )
+            val_dataset = mlflow.data.from_pandas(
+                dataFrame[val_mask][features.MODEL_FEATURES + ["podiumFinish"]],
+                name=f"{runName}-val-fold-{fold}",
+                targets="podiumFinish"
+            )
         mlflow.log_input(train_dataset, context="training")
         mlflow.log_input(val_dataset, context="validation")
 
@@ -102,31 +110,42 @@ def train_single_fold(dataFrame: pd.DataFrame, runName: str, fold, X, y, train_y
 def train_model_for_folds(X, y, dataFrame, folds, config):
     run_name = config["run_name"]
     model_params = config["model_params"]
-    description=config["description"]
-    commit_sha=config["commit_sha"]
+    description = config["description"]
+    commit_sha = config["commit_sha"]
 
     with mlflow.start_run(run_name=run_name, description=description) as parent_run:
         mlflow.set_tags(config["tags"])
+
+        source = HTTPDatasetSource(url=f"lakefs://{settings.lakefs_repo}/main@{commit_sha}")
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=INTEGER_SCHEMA_WARNING)
+            dataset = mlflow.data.from_pandas(
+                dataFrame,
+                source=source,
+                name="f1-race-data",
+                targets="podiumFinish"
+            )
+        mlflow.log_input(dataset, context="training")
 
         fold_aucs, fold_briers = [], []
         all_preds, all_labels = [], []
 
         for fold, (train_years, val_years) in enumerate(folds):
             model, fold_auc, fold_brier, preds, y_val_fold = train_single_fold(
-                 dataFrame, 
-                 run_name, 
-                 fold, 
-                 X, 
-                 y, 
-                 train_years, 
-                 val_years, 
-                 model_params)
+                dataFrame,
+                run_name,
+                fold,
+                X,
+                y,
+                train_years,
+                val_years,
+                model_params)
 
             all_preds.extend(preds)
             all_labels.extend(y_val_fold)
             fold_aucs.append(fold_auc)
             fold_briers.append(fold_brier)
-        
+
         agg_auc = roc_auc_score(all_labels, all_preds)
 
         mlflow.log_metric("mean_val_roc_auc", np.mean(fold_aucs))
@@ -134,6 +153,5 @@ def train_model_for_folds(X, y, dataFrame, folds, config):
         mlflow.log_metric("agg_val_roc_auc", agg_auc)
 
         log_model_artifact(model, X, run_name)
-        mlflow.set_tag("lakefs_commit", commit_sha)
 
     return model

@@ -6,8 +6,8 @@ from ingest.settings import settings
 
 _clt = Client(
     host=settings.lakefs_host,
-    username=settings.lakefs_username,
-    password=settings.lakefs_password,
+    username=settings.lakefs_installation_access_key_id,
+    password=settings.lakefs_installation_secret_access_key,
 )
 
 _branch = lakefs.Repository(settings.lakefs_repo, client=_clt).branch("main")
@@ -26,19 +26,13 @@ def load_results() -> pd.DataFrame:
     return _read_csv("raw/results.csv", na_values="\\N")
 
 def load_drivers() -> pd.DataFrame:
-    df =_read_csv("raw/drivers.csv", na_values="\\N", parse_dates=["dob"])
-    df["driverId"] = df["driverId"].astype("category")
-    return df
+    return _read_csv("raw/drivers.csv", na_values="\\N", parse_dates=["dob"])
 
 def load_constructors() -> pd.DataFrame:
-    df = _read_csv("raw/constructors.csv")
-    df["constructorId"] = df["constructorId"].astype("category")
-    return df
+    return _read_csv("raw/constructors.csv")
 
 def load_statuses() -> pd.DataFrame:
     return _read_csv("raw/status.csv")
 
 def load_circuits() -> pd.DataFrame:
-    df = _read_csv("raw/circuits.csv")
-    df["circuitId"] = df["circuitId"].astype("category")
-    return df
+    return _read_csv("raw/circuits.csv")

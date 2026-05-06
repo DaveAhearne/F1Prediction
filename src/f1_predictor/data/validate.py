@@ -1,14 +1,14 @@
 import pandas as pd
 import pandera.pandas as pa
-from pandera.typing import DateTime
+from pandera.typing import DateTime, Category
 
 class F1ValidationSchema(pa.DataFrameModel):
     year: int = pa.Field(gt=1990)
     raceId: int = pa.Field(gt=0)
     resultId: int = pa.Field(gt=0)
-    driverId: int = pa.Field(gt=0)
-    constructorId: int = pa.Field(gt=0)
-    circuitId: int = pa.Field(gt=0)
+    driverId: Category
+    constructorId: Category
+    circuitId: Category
     statusId: int = pa.Field(gt=0)
     round: int = pa.Field(gt=0,le=30)
     date: DateTime = pa.Field(ge=pd.Timestamp('1990-01-01'))

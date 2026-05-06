@@ -18,7 +18,7 @@ def add_driver_circuit_podium_rate(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def add_driver_experience(df: pd.DataFrame) -> pd.DataFrame:
-    df["driver_experience"] = df.groupby("driverId", observed=True).cumcount()
+    df["driver_experience"] = df.groupby("driverId", observed=True).cumcount().astype("float64")
     return df
 
 def add_driver_age(df: pd.DataFrame) -> pd.DataFrame:

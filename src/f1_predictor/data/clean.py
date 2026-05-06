@@ -10,6 +10,9 @@ def clean_data(data: pd.DataFrame) -> pd.DataFrame:
     # The data pre-1990 has huge consistency problems, and doesn't provide useful signal so we drop it
     data = data[data["year"] > 1990]
 
+    # 2025 is the test set
+    data = data[data["year"] < 2025]
+
     # We engineer the target variable, past that point we don't need this anymore and it contains a ton of NaN's
     # that represent DNF's in various forms so we can remove it
     data = data.drop(columns=["position"])
