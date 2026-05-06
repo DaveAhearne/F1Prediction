@@ -2,7 +2,7 @@
 A machine learning project to predict the probability of a Formula 1 driver finishing on the podium (top 3) for a given race.
 
 ## Project Overview
-Using historical race data from 1950 to present, we train a classification model to predict podium finishes. The model outputs a probability for each driver in a given race, rather than a binary yes/no prediction.
+Using historical race data from 1990 to present, we train a classification model to predict podium finishes. The model outputs a probability for each driver in a given race, rather than a binary yes/no prediction.
 
 ## Objectives
 - Predict the probability of a podium finish for each driver in a race
@@ -54,79 +54,104 @@ Two baselines were evaluated on 2025 race results:
 ### LightGBM Baseline
 A binary LightGBM classifier trained on a minimal feature set to establish an ML baseline before feature engineering begins. Key decisions made here:
 
-- **Training data**: 1990–2024, filtered before applying Pandera validation to avoid spurious failures from pre-1990 recording inconsistencies (duplicate raceId/driverId pairs, non-standard statuses)
-- **Data validation**: Pandera `DataFrameSchema` (`RaceResultSchema`) validates the training frame post-filter, using a warning-only approach — production pipelines would hard-stop on failures
+- **Training data**: 1990–2024, filtered before applying Pandera validation to avoid spurious failures from pre-1990 recording inconsistencies
+- **Data validation**: Pandera `DataFrameModel` validates the training frame post-filter, using a warning-only approach — production pipelines would hard-stop on failures
 - **Leakage discipline**: Rolling aggregations use `shift(1)` to ensure only prior-race data is visible at training time
 - **Evaluation metrics**: Brier score (primary — measures calibration of predicted probabilities) and ROC-AUC (secondary — measures driver ranking quality), both defined before training to avoid unconscious cherry-picking
 - **NaN handling**: NaN values in rolling rate features are primarily a cold-start issue for debut races, not DNF artefacts
 
-### Planned Feature Engineering (Part 3)
-The next iteration adds a richer feature set before re-training:
+### LightGBM with Full Feature Engineering
+The current model adds a comprehensive feature set on top of the baseline:
 
 - Driver rolling podium rate at 3, 5, and 10-race windows
 - Constructor rolling podium rate at 3, 5, and 10-race windows
-- Mechanical DNF rate (driver and constructor)
+- Constructor mechanical DNF rate (5-race window)
 - Driver age and career race count
-- Circuit-specific podium rate (driver and constructor)
+- Circuit-specific driver podium rate
 - Championship standings position
+- Season podium rate
 - Regulation era encoding
 - Circuit type (street, permanent, hybrid)
 - Grid size
 - Home race flag
 
-Walk-forward cross-validation, `circuitId` feature engineering, and class imbalance handling are acknowledged but deferred to future parts.
+Training uses walk-forward cross-validation (10-year training window, 1-year validation window) with experiment tracking in MLflow and data versioning via LakeFS.
+
+## Results
+
+| Stage | Mean Val ROC-AUC | Agg Val ROC-AUC | Mean Val Brier Score | Notes |
+|-------|-----------------|-----------------|----------------------|-------|
+| Rolling podium rate heuristic | - | 0.79 | 0.12 | Pre-weekend baseline |
+| LightGBM baseline | 0.81 | - | 0.12 | Minimal features, 1990–2024 |
+| LightGBM full feature set | 0.876 | 0.883 | 0.088 | Full feature engineering, walk-forward CV |
 
 ## Project Structure
 ```
-├── data/
-│   └── raw/
-│       ├── races.csv
-│       ├── qualifying.csv
-│       ├── results.csv
-│       ├── drivers.csv
-│       └── constructors.csv
-├── notebooks/
-│   ├── EDA.ipynb
-│   ├── Heuristic_Baseline.ipynb
-│   └── LightGBM_Baseline.ipynb
-└── README.md
+├── ingest/                         # Data ingestion (runs independently of training)
+│   ├── bootstrap.py                # Initial load of raw CSVs into LakeFS
+│   ├── update.py                   # Incremental data updates
+│   └── settings.py                 # LakeFS connection settings
+├── src/
+│   └── f1_predictor/
+│       ├── common/
+│       │   └── config.py           # Shared settings (MLflow URI, LakeFS, hyperparameters)
+│       ├── data/
+│       │   ├── load.py             # Reads CSVs from LakeFS, casts dtypes
+│       │   ├── merge.py            # Joins raw tables into a single race frame
+│       │   ├── clean.py            # Year filtering, target variable, column cleanup
+│       │   └── validate.py         # Pandera schema validation
+│       ├── features/
+│       │   ├── driver.py           # Driver rolling rates, age, experience, circuit rate
+│       │   ├── constructor.py      # Constructor rolling rates and DNF rates
+│       │   ├── context.py          # Championship position, regulation era, circuit type, home race
+│       │   └── features.py         # MODEL_FEATURES constant — single source of truth for feature list
+│       ├── models/
+│       │   ├── train.py            # Walk-forward training loop with MLflow logging
+│       │   ├── evaluate.py         # Evaluation utilities
+│       │   └── register.py         # Model registry promotion
+│       ├── pipelines/
+│       │   └── train_pipeline.py   # Orchestrates load → clean → validate → engineer → train
+│       └── serve/
+│           ├── api.py              # FastAPI serving endpoint (planned)
+│           └── routes/
+│               └── health.py
+├── notebooks/                      # Exploratory and iterative work
+├── docker-compose.yml              # MLflow and LakeFS services
+├── .env                            # Local config and hyperparameters (not committed)
+└── pyproject.toml
 ```
+
+## Infrastructure
+
+The project uses Docker Compose to run MLflow and LakeFS locally. Both services persist data to named volumes so runs survive restarts.
+
+```bash
+docker compose up
+```
+
+| Service | URL |
+|---------|-----|
+| MLflow tracking UI | http://localhost:5000 |
+| LakeFS UI | http://localhost:8000 |
 
 ## Setup
+
+Install dependencies:
+
 ```bash
-pip install pandas scikit-learn lightgbm pandera matplotlib seaborn requests
+pip install -e ".[train,data,dev]"
 ```
 
-## Results
-| Stage | ROC-AUC | Brier Score | Notes |
-|-------|---------|-------------|-------|
-| Rolling podium rate heuristic | 0.79 | 0.12 | Pre-weekend baseline, evaluated on 2025 |
-| LightGBM baseline | 0.81 | 0.12 | Minimal features, 1990–2024 training data, evaluated on 2025 |
+Copy `.env.example` to `.env` and fill in your LakeFS credentials and MLflow URI.
 
+Bootstrap data into LakeFS (first run only):
 
-
-
----- Other notes:
-
-We're gonana use dockerized lakefs
-
-```
-docker run --pull always -p 8000:8000 treeverse/lakefs:latest \
-  run --local-settings
+```bash
+f1_bootstrap
 ```
 
+Run the training pipeline:
 
-```
-docker run --pull always -p 8000:8000 treeverse/lakefs:latest \
-  run --local-settings
-
-docker run --pull always \
-  -p 5000:5000 \
-  -v $(pwd)/mlflow:/mlflow \
-  ghcr.io/mlflow/mlflow:v3.12.0-full \
-  mlflow server \
-    --host 0.0.0.0 \
-    --port 5000 \
-    --backend-store-uri sqlite:////mlflow/mlflow.db \
-    --default-artifact-root /mlflow/artifacts
+```bash
+f1_train
 ```
