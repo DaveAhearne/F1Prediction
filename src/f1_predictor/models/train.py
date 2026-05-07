@@ -1,22 +1,17 @@
-import onnx
 import pandas as pd
 import mlflow
 import numpy as np
 import lightgbm as lgb
 import warnings
 from sklearn.metrics import roc_auc_score, brier_score_loss
-from mlflow.models import infer_signature
 from mlflow.data.http_dataset_source import HTTPDatasetSource
 from f1_predictor.features import features
 from datetime import datetime
 from f1_predictor.common.config import settings
-import onnxmltools
-from onnxmltools.convert.common.data_types import FloatTensorType
+from f1_predictor.models import fold, export, types
 
-INTEGER_SCHEMA_WARNING = "Hint: Inferred schema contains integer column"
-
-def train(data: pd.DataFrame, commit_sha):
-    folds = generate_rolling_window_folds(data, train_window=10, val_window=1)
+def train(data: pd.DataFrame, commit_sha) -> types.TrainingResult:
+    folds = fold.generate_rolling_window_folds(data, train_window=10, val_window=1)
 
     X = data[features.MODEL_FEATURES]
     y = data["podiumFinish"]
@@ -49,19 +44,7 @@ def train(data: pd.DataFrame, commit_sha):
 
     run_name, run_id = train_model_for_folds(X, y, data, folds, training_parameters)
 
-    return run_name, run_id
-
-def generate_rolling_window_folds(dataframe, train_window, val_window):
-    years = sorted(dataframe["year"].unique())
-
-    folds = []
-
-    for i in range(len(years) - train_window - val_window + 1):
-        train_years = years[i: i + train_window]
-        val_years = years[i + train_window: i + train_window + val_window]
-        folds.append((train_years, val_years))
-
-    return folds
+    return types.TrainingResult(run_name=run_name, run_id=run_id)
 
 def train_single_fold(dataFrame: pd.DataFrame, runName: str, fold, X, y, train_years, val_years, model_params):
     train_mask = dataFrame["year"].isin(train_years)
@@ -72,7 +55,7 @@ def train_single_fold(dataFrame: pd.DataFrame, runName: str, fold, X, y, train_y
 
     with mlflow.start_run(run_name=f"{runName}-fold-{fold}", nested=True):
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message=INTEGER_SCHEMA_WARNING)
+            warnings.filterwarnings("ignore", message=types.INTEGER_SCHEMA_WARNING)
             train_dataset = mlflow.data.from_pandas(
                 dataFrame[train_mask][features.MODEL_FEATURES + ["podiumFinish"]],
                 name=f"{runName}-train-fold-{fold}",
@@ -111,7 +94,7 @@ def train_model_for_folds(X, y, dataFrame, folds, config) -> tuple[str, str]:
 
         source = HTTPDatasetSource(url=f"lakefs://{settings.lakefs_repo}/main@{commit_sha}")
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message=INTEGER_SCHEMA_WARNING)
+            warnings.filterwarnings("ignore", message=types.INTEGER_SCHEMA_WARNING)
             dataset = mlflow.data.from_pandas(
                 dataFrame,
                 source=source,
@@ -149,33 +132,14 @@ def train_model_for_folds(X, y, dataFrame, folds, config) -> tuple[str, str]:
 
         return run_name, parent_run.info.run_id
 
-def convert_to_onnx(model: lgb.LGBMClassifier) -> onnx.ModelProto:
-    initial_types = [("input", FloatTensorType([None, len(model.booster_.feature_name())]))]
-    onnx_model = onnxmltools.convert_lightgbm(model, initial_types=initial_types, target_opset=12)
-
-    return onnx_model
-
-def log_model_artifact(model, X, run_name):
-    mlflow.log_params(model.get_params())
-
-    output_sample = pd.DataFrame(
-        model.predict_proba(X)[:, 1],
-        columns=["podium_probability"]
-    )
-
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message=INTEGER_SCHEMA_WARNING)
-        signature = infer_signature(X, output_sample)
-        mlflow.lightgbm.log_model(model, name=run_name, signature=signature)
-
 def train_model_on_all_data(run_name, X, y, model_params):
     final_model = lgb.LGBMClassifier(**model_params)
     final_model.fit(X, y)
 
-    log_model_artifact(final_model, X, run_name)
+    export.log_model_artifact(final_model, X, run_name)
 
     # TODO: Move this out of here, we should really only do this on promoted runs
     # but, until the training loop has been automated this is a good enough fit for now
-    onnx_model = convert_to_onnx(final_model)
+    onnx_model = export.convert_to_onnx(final_model)
 
     mlflow.onnx.log_model(onnx_model, name=f"{run_name}-onnx")

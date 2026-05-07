@@ -5,13 +5,14 @@ import f1_predictor.data.clean as clean
 import  f1_predictor.data.validate as validate
 import f1_predictor.data.load as data_loaders
 from f1_predictor.data.merge import build_race_frame
+from f1_predictor.features import features
 import f1_predictor.features.constructor as constructor_features
 import f1_predictor.features.context as context_features
 import f1_predictor.features.driver as driver_features
-from f1_predictor.models.train import train
+from f1_predictor.models.eval import evaluate
 from f1_predictor.common.config import settings
 
-def train_pipeline():
+def eval_pipeline():
     warnings.filterwarnings("error", message="Hint: Inferred schema contains integer column")
     
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
@@ -28,7 +29,7 @@ def train_pipeline():
 
     lakefs_commit_sha = data_loaders.get_commit_sha()
 
-    cleaned_df = clean.clean_data(raw_df, min_year=1990, max_year=2025)
+    cleaned_df = clean.clean_data(raw_df, max_year=2026)
     validate.check_schema(cleaned_df)
 
     cleaned_df = driver_features.add_driver_rolling_podium_rates(cleaned_df)
@@ -44,5 +45,9 @@ def train_pipeline():
     cleaned_df = context_features.add_regulation_era(cleaned_df)
     cleaned_df = context_features.add_grid_size(cleaned_df)
 
-    run_name, run_id  = train(data=cleaned_df, commit_sha=lakefs_commit_sha)
-    print(f"\nTraining finished: \n\tRun name: {run_name} \n\tRun id: {run_id}\n")
+    eval_df = cleaned_df[cleaned_df["year"] == 2025]
+
+    X = eval_df[features.MODEL_FEATURES]
+    y = eval_df["podiumFinish"]
+
+    evaluate(X, y, lakefs_commit_sha, tag="champion")
