@@ -1,20 +1,21 @@
 import logging
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from f1_predictor.serve.clients import LakeFSClient, MLFlowClient
 from f1_predictor.serve.routes.health import router as health_router
 from f1_predictor.serve.routes.predict import router as predict_router
 from f1_predictor.common.config import settings
+from f1_predictor.serve.startup import load_and_prepare_data, load_inference_model
 
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    lakefs_client = LakeFSClient()
-    mlflow_client = MLFlowClient()
-
-    app.state.lakefs_client = lakefs_client
-    app.state.mlflow_client = mlflow_client
+    model, model_version, model_id = load_inference_model(tag="champion")
+    app.state.f1_data = load_and_prepare_data()
+    
+    app.state.model = model
+    app.state.model_version = model_version
+    app.state.model_id = model_id
     yield
     
 app = FastAPI(
