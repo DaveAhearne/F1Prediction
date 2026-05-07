@@ -13,7 +13,7 @@ def build_race_frame(
         right=races[["raceId", "year", "round", "circuitId", "name", "date"]],
         on="raceId"
     )
-    df = pd.merge(df, drivers[["driverId", "dob", "nationality"]], on="driverId")
+    df = pd.merge(df, drivers[["driverId", "dob", "nationality", "forename", "surname"]], on="driverId")
     df = pd.merge(df, constructors[["constructorId", "name"]], on="constructorId", suffixes=("_race", "_constructor"))
     df = pd.merge(df, statuses[["statusId", "status"]], on="statusId")
     df = pd.merge(df, circuits[["circuitId", "location", "country"]], on="circuitId")

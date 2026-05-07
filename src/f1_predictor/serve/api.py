@@ -1,19 +1,32 @@
 import logging
 from fastapi import FastAPI
-import onnxruntime as ort
+from contextlib import asynccontextmanager
+from f1_predictor.serve.clients import LakeFSClient, MLFlowClient
 from f1_predictor.serve.routes.health import router as health_router
+from f1_predictor.serve.routes.predict import router as predict_router
 from f1_predictor.common.config import settings
 
 logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    lakefs_client = LakeFSClient()
+    mlflow_client = MLFlowClient()
+
+    app.state.lakefs_client = lakefs_client
+    app.state.mlflow_client = mlflow_client
+    yield
     
 app = FastAPI(
     title="F1 Predictor",
     description="",
     version="1.0.0",
     docs_url="/",
+    lifespan=lifespan,
 )
 
 app.include_router(health_router)
+app.include_router(predict_router)
 
 def main() -> None:
     import os

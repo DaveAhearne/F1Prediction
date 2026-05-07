@@ -1,6 +1,5 @@
 import warnings
 import mlflow
-import pandas as pd
 import f1_predictor.data.clean as clean
 import  f1_predictor.data.validate as validate
 import f1_predictor.data.load as data_loaders
