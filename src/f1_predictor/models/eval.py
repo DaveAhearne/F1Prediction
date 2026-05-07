@@ -23,8 +23,11 @@ def get_roc_auc_stats(all_preds, all_labels):
 
 def run_inference(model, X):
     sess = rt.InferenceSession(model.SerializeToString())
+
     input_name = sess.get_inputs()[0].name
-    preds = sess.run(None, {input_name: X.values.astype(np.float32)})[1][:,1]
+
+    outputs = sess.run(None, {input_name: X.values.astype(np.float32)})
+    preds = np.array([d[1] for d in outputs[1]])
 
     return preds
 

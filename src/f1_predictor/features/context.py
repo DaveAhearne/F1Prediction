@@ -31,7 +31,13 @@ def add_championship_position(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def add_circuit_type(df: pd.DataFrame) -> pd.DataFrame:
-    circuit_type_map = {
+    circuit_type_encoding = {
+        "street": 0,
+        "hybrid": 1,
+        "permanent": 2,
+    }
+
+    circuit_type_map = {circuit_id: circuit_type_encoding[circuit_type] for circuit_id, circuit_type in {
         6: "street", 12: "street", 15: "street", 29: "street", 33: "street",
         37: "street", 42: "street", 43: "street", 44: "street", 59: "street",
         67: "street", 73: "street", 77: "street", 80: "street", 81: "street",
@@ -43,8 +49,9 @@ def add_circuit_type(df: pd.DataFrame) -> pd.DataFrame:
         20: "permanent", 21: "permanent", 22: "permanent", 24: "permanent",
         25: "permanent", 26: "permanent", 27: "permanent", 28: "permanent",
         30: "permanent", 31: "permanent", 32: "permanent", 34: "permanent",
-    }
-    df["circuit_type"] = df["circuitId"].map(circuit_type_map)
+    }.items()}
+
+    df["circuit_type"] = df["circuitId"].map(circuit_type_map).fillna(circuit_type_encoding["permanent"])
     return df
 
 def add_home_race(df: pd.DataFrame) -> pd.DataFrame:
@@ -70,15 +77,19 @@ def add_home_race(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_regulation_era(df: pd.DataFrame) -> pd.DataFrame:
-    regulation_era_map = {year: era for era, years in {
+    era_names = {
         "v10": range(1991, 2006),
         "v8": range(2006, 2014),
         "hybrid": range(2014, 2022),
         "ground_effect": range(2022, 2026),
         "battery": range(2026, 2030),
-    }.items() for year in years}
+    }   
 
+    era_encoding = {name: i for i, name in enumerate(era_names)}
+
+    regulation_era_map = {year: era_encoding[era] for era, years in era_names.items() for year in years}
     df["regulation_era"] = df["year"].map(regulation_era_map).astype("category")
+
     return df
 
 def add_grid_size(df: pd.DataFrame):
