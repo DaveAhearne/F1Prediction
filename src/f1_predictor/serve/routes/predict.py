@@ -6,6 +6,7 @@ import onnxruntime as rt
 import numpy as np
 
 from f1_predictor.features import features
+from f1_predictor.serve.request import get_target_df
 from f1_predictor.serve.template_env import templates
 
 logger = logging.getLogger(__name__)
@@ -26,13 +27,11 @@ async def get_predict(request: Request):
 
 @router.post("/predict")
 async def predict(request: Request, payload: RacePredictionRequest):
-    race_data = request.app.state.f1_data
-    model = request.app.state.model    
-    
-    target_df = race_data[(race_data["year"] == payload.year) & (race_data["round"] == payload.round)]
+    f1_data = request.app.state.f1_data
+    all_race_data = request.app.state.all_race_data
+    model = request.app.state.model
 
-    if target_df.empty:
-        raise HTTPException(status_code=404, detail=f"No data found for {payload.year} round {payload.round}")
+    target_df = get_target_df(f1_data, all_race_data, payload.year, payload.round)
 
     X = target_df[features.MODEL_FEATURES]
 

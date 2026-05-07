@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     model, model_version, model_id = load_inference_model(tag="champion")
-    app.state.f1_data = load_and_prepare_data()
+    app.state.f1_data, app.state.all_race_data = load_and_prepare_data()
     
     app.state.model = model
     app.state.model_version = model_version
