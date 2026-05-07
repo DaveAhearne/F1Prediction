@@ -22,7 +22,7 @@ app = FastAPI(
     title="F1 Predictor",
     description="",
     version="1.0.0",
-    docs_url="/",
+    docs_url="/docs",
     lifespan=lifespan,
 )
 

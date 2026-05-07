@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>F1 Podium Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:     #e8002d;
+      --red-dim: #8a0019;
+      --bg:      #0a0a0c;
+      --panel:   #111115;
+      --border:  #222228;
+      --text:    #e8e8f0;
+      --muted:   #555566;
+      --accent:  #f5c400;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Barlow', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1rem 5rem;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(232,0,45,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232,0,45,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 3rem;
+      text-align: center;
+    }
+
+    .flag-bar {
+      display: flex;
+      justify-content: center;
+      gap: 3px;
+      margin-bottom: 1.5rem;
+    }
+
+    .flag-bar span {
+      display: block;
+      width: 14px;
+      height: 14px;
+    }
+
+    .flag-bar span:nth-child(odd)  { background: #fff; }
+    .flag-bar span:nth-child(even) { background: #111; }
+
+    h1 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: clamp(2.8rem, 8vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 0.95;
+      text-transform: uppercase;
+    }
+
+    h1 em {
+      color: var(--red);
+      font-style: normal;
+      display: block;
+    }
+
+    .sub {
+      margin-top: 0.75rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* Form card */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--red);
+      padding: 2rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .field label {
+      display: block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .field input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      padding: 0.6rem 0.8rem;
+      outline: none;
+      transition: border-color 0.15s;
+      -moz-appearance: textfield;
+    }
+
+    .field input::-webkit-outer-spin-button,
+    .field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .field input:focus { border-color: var(--red); }
+
+    button[type="submit"] {
+      width: 100%;
+      background: var(--red);
+      color: #fff;
+      border: none;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 0.9rem 1.5rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button[type="submit"]:hover  { background: #ff1a40; }
+    button[type="submit"]:active { transform: scale(0.99); }
+
+    button[type="submit"].loading { background: var(--red-dim); pointer-events: none; }
+    button[type="submit"].loading::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+      animation: shimmer 1s infinite;
+    }
+
+    @keyframes shimmer { to { left: 100%; } }
+
+    /* Results */
+    #results { display: none; }
+    #results.visible { display: block; }
+
+    .results-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .results-header h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .race-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+    }
+
+    .driver-row {
+      display: grid;
+      grid-template-columns: 2rem 1fr auto;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.9rem 1.25rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid transparent;
+      margin-bottom: 2px;
+      background: var(--panel);
+      opacity: 0;
+      transform: translateX(-8px);
+      animation: slideIn 0.3s forwards;
+    }
+
+    .driver-row.pos-1 { border-left-color: var(--accent); }
+    .driver-row.pos-2 { border-left-color: #c0c0c0; }
+    .driver-row.pos-3 { border-left-color: #cd7f32; }
+
+    @keyframes slideIn {
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .pos-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .driver-row.pos-1 .pos-num { color: var(--accent); }
+    .driver-row.pos-2 .pos-num { color: #c0c0c0; }
+    .driver-row.pos-3 .pos-num { color: #cd7f32; }
+
+    .driver-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .prob-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .prob-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--red);
+    }
+
+    .prob-bar-bg {
+      width: 80px;
+      height: 3px;
+      background: var(--border);
+    }
+
+    .prob-bar {
+      height: 100%;
+      background: var(--red);
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .driver-row.pos-1 .prob-bar { background: var(--red); }
+    .driver-row.pos-1 .prob-val { color: var(--text); }
+
+    .results-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      outline: none;
+      margin-top: 1.4rem;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--red);
+      border-radius: 0;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover { background: #ff1a40; }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: var(--red);
+      border: none;
+      border-radius: 0;
+      cursor: pointer;
+    }
+
+    #round-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .error-msg {
+      background: rgba(232,0,45,0.1);
+      border: 1px solid var(--red-dim);
+      color: var(--red);
+      padding: 1rem 1.25rem;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="flag-bar">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <h1>Podium<em>Predictor</em></h1>
+      <p class="sub">LightGBM · Walk-Forward CV · ONNX Serving</p>
+    </header>
+
+    <div class="card">
+      <form id="predict-form">
+        <div class="fields">
+          <div class="field">
+            <label for="year">Season</label>
+            <input type="number" id="year" name="year" value="2024" min="1991" max="2030" required />
+          </div>
+          <div class="field">
+            <label for="round">Round <span id="round-val">5</span></label>
+            <input type="range" id="round" name="round" value="5" min="1" max="24" />
+          </div>
+        </div>
+        <button type="submit" id="submit-btn">Run Prediction</button>
+      </form>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const roundInput = document.getElementById('round');
+    const roundVal   = document.getElementById('round-val');
+    roundInput.addEventListener('input', () => roundVal.textContent = roundInput.value);
+
+    const form = document.getElementById('predict-form');
+    const btn  = document.getElementById('submit-btn');
+    const out  = document.getElementById('results');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const year  = parseInt(document.getElementById('year').value);
+      const round = parseInt(document.getElementById('round').value);
+
+      btn.textContent = 'Computing…';
+      btn.classList.add('loading');
+      out.classList.remove('visible');
+      out.innerHTML = '';
+
+      try {
+        const res = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ year, round })
+        });
+
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+        const drivers = await res.json();
+
+        out.innerHTML = `
+          <div class="results-header">
+            <h2>Podium likelihood</h2>
+            <span class="race-label">${year} · Round ${round}</span>
+          </div>
+          <div class="results-note">Drivers ranked by estimated probability of finishing in the top 3 — not predicted finishing order.</div>
+          ${drivers.map((d, i) => {
+            const pct = (d.podium_probability * 100).toFixed(1);
+            const barW = Math.min(d.podium_probability * 200, 100).toFixed(1);
+            return `
+              <div class="driver-row pos-${i + 1}" style="animation-delay:${i * 60}ms">
+                <span class="pos-num">${i + 1}</span>
+                <span class="driver-name">${d.driver}</span>
+                <div class="prob-wrap">
+                  <span class="prob-val">${pct}%</span>
+                  <div class="prob-bar-bg">
+                    <div class="prob-bar" style="width:${barW}%"></div>
+                  </div>
+                </div>
+              </div>`;
+          }).join('')}
+        `;
+
+        out.classList.add('visible');
+
+      } catch (err) {
+        out.innerHTML = `<div class="error-msg">Failed to fetch predictions — ${err.message}</div>`;
+        out.classList.add('visible');
+      } finally {
+        btn.textContent = 'Run Prediction';
+        btn.classList.remove('loading');
+      }
+    });
+  </script>
+</body>
+</html>

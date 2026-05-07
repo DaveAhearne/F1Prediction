@@ -1,12 +1,12 @@
 import logging
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 import onnxruntime as rt
 import numpy as np
 
-from f1_predictor.common.config import settings
-
 from f1_predictor.features import features
+from f1_predictor.serve.template_env import templates
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +15,24 @@ router = APIRouter()
 class RacePredictionRequest(BaseModel):
     year: int
     round: int
-    
+
+@router.get("/")
+async def home(request: Request):
+    return RedirectResponse(url="/predict", status_code=303)
+
+@router.get("/predict")
+async def get_predict(request: Request):
+    return templates.TemplateResponse(request, "home.html")
+
 @router.post("/predict")
 async def predict(request: Request, payload: RacePredictionRequest):
     race_data = request.app.state.f1_data
     model = request.app.state.model    
     
     target_df = race_data[(race_data["year"] == payload.year) & (race_data["round"] == payload.round)]
+
+    if target_df.empty:
+        raise HTTPException(status_code=404, detail=f"No data found for {payload.year} round {payload.round}")
 
     X = target_df[features.MODEL_FEATURES]
 

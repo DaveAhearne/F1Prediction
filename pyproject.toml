@@ -32,6 +32,7 @@ serv = [
     "uvicorn",
     "onnxruntime",
     "numpy",
+    "jinja2>=3.1.0",
 ]
 dev = [
     "pytest",
