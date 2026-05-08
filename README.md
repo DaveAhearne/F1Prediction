@@ -96,7 +96,7 @@ Training uses walk-forward cross-validation (10-year training window, 1-year val
 │       ├── common/
 │       │   └── config.py           # Shared settings (MLflow URI, LakeFS, hyperparameters)
 │       ├── data/
-│       │   ├── load.py             # Reads CSVs from LakeFS, casts dtypes
+│       │   ├── load.py             # Reads CSVs from LakeFS via io.BytesIO
 │       │   ├── merge.py            # Joins raw tables into a single race frame
 │       │   ├── clean.py            # Year filtering, target variable, column cleanup
 │       │   └── validate.py         # Pandera schema validation
@@ -107,14 +107,24 @@ Training uses walk-forward cross-validation (10-year training window, 1-year val
 │       │   └── features.py         # MODEL_FEATURES constant — single source of truth for feature list
 │       ├── models/
 │       │   ├── train.py            # Walk-forward training loop with MLflow logging
-│       │   ├── evaluate.py         # Evaluation utilities
-│       │   └── register.py         # Model registry promotion
+│       │   ├── eval.py             # Evaluation utilities and test set scoring
+│       │   ├── export.py           # ONNX conversion and MLflow artifact logging
+│       │   ├── fold.py             # Rolling window fold generation
+│       │   └── types.py            # Shared types and constants
 │       ├── pipelines/
-│       │   └── train_pipeline.py   # Orchestrates load → clean → validate → engineer → train
+│       │   ├── train_pipeline.py   # Orchestrates load → clean → validate → engineer → train
+│       │   └── eval_pipeline.py    # Orchestrates load → engineer → evaluate champion model
 │       └── serve/
-│           ├── api.py              # FastAPI serving endpoint (planned)
+│           ├── api.py              # FastAPI app with lifespan startup
+│           ├── startup.py          # Data preparation and model loading at startup
+│           ├── clients.py          # LakeFS and MLflow client wrappers
+│           ├── request.py          # Inference request handling and feature extrapolation
+│           ├── template_env.py     # Jinja2 template configuration
+│           ├── templates/
+│           │   └── home.html       # Prediction UI
 │           └── routes/
-│               └── health.py
+│               ├── health.py       # GET /health
+│               └── predict.py      # GET|POST /predict
 ├── notebooks/                      # Exploratory and iterative work
 ├── docker-compose.yml              # MLflow and LakeFS services
 ├── .env                            # Local config and hyperparameters (not committed)
@@ -154,4 +164,16 @@ Run the training pipeline:
 
 ```bash
 f1_train
+```
+
+Evaluate the champion model against the 2025 test set:
+
+```bash
+f1_eval
+```
+
+Start the inference server:
+
+```bash
+f1_serve
 ```

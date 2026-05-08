@@ -20,7 +20,7 @@ def add_constructor_dnf_rates(df: pd.DataFrame) -> pd.DataFrame:
         df[~df["status"].isin(non_mechanical_statuses)]["statusId"]
     )
 
-    df = df.sort_values(["driverId", "year", "round"]).copy()
+    df = df.sort_values(["constructorId", "year", "round"]).copy()
     df["mechanicalDNF"] = df["statusId"].isin(mechanical_ids).astype(int)
     df["constructor_mechanical_dnf_rate_5"] = (
         df.groupby("constructorId", observed=True)["mechanicalDNF"]
@@ -30,7 +30,7 @@ def add_constructor_dnf_rates(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def add_constructor_rolling_podium_rates(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.sort_values(["driverId", "year", "round"]).copy()
+    df = df.sort_values(["constructorId", "year", "round"]).copy()
     for window in [3, 5, 10]:
         col = f"constructor_podium_rate_{window}"
         df[col] = (

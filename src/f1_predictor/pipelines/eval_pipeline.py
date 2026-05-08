@@ -16,7 +16,7 @@ def eval_pipeline():
     warnings.filterwarnings("error", message="Hint: Inferred schema contains integer column")
     
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
-    mlflow.set_experiment("f1-podium-predictor")
+    mlflow.set_experiment(settings.mlflow_experiment_name)
     
     raw_df = build_race_frame(
         races=data_loaders.load_races(),

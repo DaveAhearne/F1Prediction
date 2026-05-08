@@ -2,7 +2,7 @@ import io
 import lakefs
 import pandas as pd
 from lakefs.client import Client
-from ingest.settings import settings
+from f1_predictor.common.config import settings
 
 _clt = Client(
     host=settings.lakefs_host,

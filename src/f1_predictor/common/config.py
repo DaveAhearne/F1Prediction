@@ -13,13 +13,13 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str
     mlflow_experiment_name: str
 
-    train_n_estimators: int
-    train_learning_rate: float
-    train_num_leaves: int
-    train_min_child_samples: int
-    train_scale_pos_weight: float
-    train_subsample: float
-    train_colsample_bytree: float
+    train_n_estimators: int = 0
+    train_learning_rate: float = 0.0
+    train_num_leaves: int = 0
+    train_min_child_samples: int = 0
+    train_scale_pos_weight: float = 0.0
+    train_subsample: float = 0.0
+    train_colsample_bytree: float = 0.0
     
     host: str = "0.0.0.0"
     port: int = 1234

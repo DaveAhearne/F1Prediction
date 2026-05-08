@@ -14,7 +14,7 @@ def train_pipeline():
     warnings.filterwarnings("error", message="Hint: Inferred schema contains integer column")
     
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
-    mlflow.set_experiment("f1-podium-predictor")
+    mlflow.set_experiment(settings.mlflow_experiment_name)
     
     raw_df = build_race_frame(
         races=data_loaders.load_races(),
@@ -43,5 +43,5 @@ def train_pipeline():
     cleaned_df = context_features.add_regulation_era(cleaned_df)
     cleaned_df = context_features.add_grid_size(cleaned_df)
 
-    run_name, run_id  = train(data=cleaned_df, commit_sha=lakefs_commit_sha)
-    print(f"\nTraining finished: \n\tRun name: {run_name} \n\tRun id: {run_id}\n")
+    result = train(data=cleaned_df, commit_sha=lakefs_commit_sha)
+    print(f"\nTraining finished: \n\tRun name: {result.run_name} \n\tRun id: {result.run_id}\n")

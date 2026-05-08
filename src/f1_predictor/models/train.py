@@ -128,18 +128,31 @@ def train_model_for_folds(X, y, dataFrame, folds, config) -> tuple[str, str]:
         mlflow.log_metric("mean_val_brier_score", np.mean(fold_briers))
         mlflow.log_metric("agg_val_roc_auc", agg_auc)
 
-        train_model_on_all_data(run_name, X, y, model_params)
+        train_model_on_all_data(run_name, parent_run.info.run_id, X, y, model_params)
 
         return run_name, parent_run.info.run_id
 
-def train_model_on_all_data(run_name, X, y, model_params):
+def train_model_on_all_data(run_name, run_id, X, y, model_params):
     final_model = lgb.LGBMClassifier(**model_params)
     final_model.fit(X, y)
 
-    export.log_model_artifact(final_model, X, run_name)
+    version = export.log_model_artifacts(final_model, X, run_name)
 
-    # TODO: Move this out of here, we should really only do this on promoted runs
-    # but, until the training loop has been automated this is a good enough fit for now
-    onnx_model = export.convert_to_onnx(final_model)
-
-    mlflow.onnx.log_model(onnx_model, name=f"{run_name}-onnx")
+    client = mlflow.MlflowClient()
+    client.update_model_version(
+        name=settings.mlflow_experiment_name,
+        version=version.version,
+        description=f"LightGBM walk-forward model, ONNX export. Training run: {run_name}"
+    )
+    client.set_model_version_tag(
+        name=settings.mlflow_experiment_name,
+        version=version.version,
+        key="model_type",
+        value="lightgbm"
+    )
+    client.set_model_version_tag(
+        name=settings.mlflow_experiment_name,
+        version=version.version,
+        key="export_format",
+        value="onnx"
+    )
