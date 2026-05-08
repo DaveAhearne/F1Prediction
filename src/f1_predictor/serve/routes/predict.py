@@ -5,7 +5,7 @@ from f1_predictor.features import features
 from f1_predictor.serve import prepare
 from f1_predictor.serve.inference import ONNXModelInference
 from f1_predictor.serve.schema import DriverPrediction, RacePredictionRequest
-from f1_predictor.serve.template_env import templates
+from f1_predictor.serve.api import templates
 
 logger = logging.getLogger(__name__)
 
