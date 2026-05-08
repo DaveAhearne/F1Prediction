@@ -3,7 +3,7 @@ from f1_predictor.common.config import settings
 from contextvars import ContextVar
 import uuid
 from starlette.middleware.base import BaseHTTPMiddleware
-from f1_predictor.serve.log import request_id_ctx
+from f1_predictor.serve.logging import request_id_ctx
 
 request_id_ctx: ContextVar[str | None] = ContextVar("request_id", default=None)
 
