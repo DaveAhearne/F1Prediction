@@ -13,10 +13,13 @@ router = APIRouter()
 
 @router.get("/predict")
 async def get_predict(request: Request):
+    logger.info("HIT: GET /predict - serving UI")
     return templates.TemplateResponse(request, "home.html")
 
 @router.post("/predict", response_model=list[DriverPrediction])
 async def predict(request: Request, payload: RacePredictionRequest):
+    logger.info("HIT: POST /predict - year=%s round=%s", payload.year, payload.round)
+
     f1_data = request.app.state.f1_data
     all_race_data = request.app.state.all_race_data
     all_circuit_data = request.app.state.all_circuit_data
@@ -24,9 +27,13 @@ async def predict(request: Request, payload: RacePredictionRequest):
     model_session = ONNXModelInference(request.app.state.model)
 
     race_features = prepare.build_race_features(f1_data, all_race_data, all_circuit_data, payload.year, payload.round)
+    logger.info("Built feature frame for %s drivers", len(race_features))
+
     X = race_features[features.MODEL_FEATURES]
 
     preds = model_session.predict(X)
+
+    logger.info("Returning %s predictions", len(preds))
 
     return sorted(
         [

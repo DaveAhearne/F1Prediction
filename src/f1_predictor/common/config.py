@@ -25,4 +25,6 @@ class Settings(BaseSettings):
     port: int = 1234
     workers: int = 1
 
+    log_level: str = "INFO"
+
 settings = Settings()

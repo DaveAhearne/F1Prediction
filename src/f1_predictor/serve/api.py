@@ -1,6 +1,8 @@
 import logging
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from f1_predictor.serve.log import configure_logging
+from f1_predictor.serve.middleware import RequestIdMiddleware
 from f1_predictor.serve.routes.health import router as health_router
 from f1_predictor.serve.routes.predict import router as predict_router
 from f1_predictor.serve.routes.home import router as home_router
@@ -11,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
+
     model, model_version, model_id = load_inference_model(tag="champion")
     app.state.f1_data, app.state.all_race_data, app.state.all_circuit_data = load_and_prepare_data()
     
@@ -31,6 +35,8 @@ app.include_router(health_router)
 app.include_router(home_router)
 app.include_router(predict_router)
 
+app.add_middleware(RequestIdMiddleware)
+
 def main() -> None:
     import os
     import uvicorn
@@ -44,4 +50,5 @@ def main() -> None:
         host=host,
         port=port,
         workers=workers,
+        log_config=None
     )

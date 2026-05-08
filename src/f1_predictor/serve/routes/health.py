@@ -7,5 +7,5 @@ router = APIRouter()
 
 @router.get("/health")
 async def health():
-    logger.info("HIT: /health endpoint")
+    logger.info("HIT: /health")
     return {"status": "ok"}
