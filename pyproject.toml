@@ -5,6 +5,7 @@ requires-python = ">=3.10"
 
 # MLflow lives here because both training and serving touch it
 dependencies = [
+    "onnx",
     "pydantic",
     "pydantic-settings",
     "mlflow>=2.0",
