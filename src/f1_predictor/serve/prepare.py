@@ -1,6 +1,7 @@
 import pandas as pd
+import f1_predictor.features.context as context_features
 
-def get_target_df(df: pd.DataFrame, races: pd.DataFrame, year: int, round: int) -> pd.DataFrame:
+def build_race_features(df: pd.DataFrame, races: pd.DataFrame, circuits: pd.DataFrame, year: int, round: int) -> pd.DataFrame:
     target_df = df[(df["year"] == year) & (df["round"] == round)]
 
     if not target_df.empty:
@@ -16,5 +17,14 @@ def get_target_df(df: pd.DataFrame, races: pd.DataFrame, year: int, round: int) 
         year=year,
         round=round
     )
+
+    extrapolated_last_known_result = extrapolated_last_known_result.merge(
+        circuits[["circuitId","country"]],
+        on="circuitId"
+    )
+
+    extrapolated_last_known_result = context_features.add_home_race(extrapolated_last_known_result)
+    extrapolated_last_known_result = context_features.add_circuit_type(extrapolated_last_known_result)
+    extrapolated_last_known_result = context_features.add_regulation_era(extrapolated_last_known_result)
 
     return extrapolated_last_known_result

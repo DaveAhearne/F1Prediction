@@ -14,10 +14,11 @@ def load_and_prepare_data() -> pd.DataFrame:
     lakefs_client = LakeFSClient()
 
     all_race_data = lakefs_client.load_races()
+    all_circuit_data = lakefs_client.load_circuits()
     
     raw_df = build_race_frame(
         races=all_race_data,
-        circuits=lakefs_client.load_circuits(),
+        circuits=all_circuit_data,
         constructors=lakefs_client.load_constructors(),
         drivers=lakefs_client.load_drivers(),
         results=lakefs_client.load_results(),
@@ -40,7 +41,7 @@ def load_and_prepare_data() -> pd.DataFrame:
     cleaned_df = context_features.add_regulation_era(cleaned_df)
     cleaned_df = context_features.add_grid_size(cleaned_df)
 
-    return cleaned_df.sort_values(by=["year", "round"]), all_race_data
+    return cleaned_df.sort_values(by=["year", "round"]), all_race_data, all_circuit_data
 
 def load_inference_model(tag: str):
     return MLFlowClient().get_model(settings.mlflow_experiment_name, tag=tag)
