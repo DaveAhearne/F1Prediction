@@ -77,6 +77,11 @@ The current model adds a comprehensive feature set on top of the baseline:
 
 Training uses walk-forward cross-validation (10-year training window, 1-year validation window) with experiment tracking in MLflow and data versioning via LakeFS.
 
+### Serving
+The trained model is exported to ONNX and served via a FastAPI application. At startup the server loads the full historical dataset from LakeFS, engineers all rolling features, and holds the result in memory. Inference requests specify a year and round; if that race has already been run the features are read directly from the prepared frame, otherwise they are extrapolated from the most recent known race.
+
+The server is packaged as a Docker image. Because MLflow and LakeFS run locally via Docker Compose, `host.docker.internal` is used to reach them from inside the container.
+
 ## Results
 
 | Stage | Mean Val ROC-AUC | Agg Val ROC-AUC | Mean Val Brier Score | Notes |
@@ -118,7 +123,8 @@ Training uses walk-forward cross-validation (10-year training window, 1-year val
 │           ├── api.py              # FastAPI app with lifespan startup
 │           ├── startup.py          # Data preparation and model loading at startup
 │           ├── clients.py          # LakeFS and MLflow client wrappers
-│           ├── request.py          # Inference request handling and feature extrapolation
+│           ├── prepare.py          # Inference request handling and feature extrapolation
+│           ├── inference.py        # ONNX inference session wrapper
 │           ├── template_env.py     # Jinja2 template configuration
 │           ├── templates/
 │           │   └── home.html       # Prediction UI
@@ -126,6 +132,7 @@ Training uses walk-forward cross-validation (10-year training window, 1-year val
 │               ├── health.py       # GET /health
 │               └── predict.py      # GET|POST /predict
 ├── notebooks/                      # Exploratory and iterative work
+├── Dockerfile.serve                # Docker image for the inference server
 ├── docker-compose.yml              # MLflow and LakeFS services
 ├── .env                            # Local config and hyperparameters (not committed)
 └── pyproject.toml
@@ -133,7 +140,7 @@ Training uses walk-forward cross-validation (10-year training window, 1-year val
 
 ## Infrastructure
 
-The project uses Docker Compose to run MLflow and LakeFS locally. Both services persist data to named volumes so runs survive restarts.
+MLflow and LakeFS run locally via Docker Compose. Both services persist data to named volumes so runs survive restarts.
 
 ```bash
 docker compose up
@@ -172,8 +179,30 @@ Evaluate the champion model against the 2025 test set:
 f1_eval
 ```
 
-Start the inference server:
+Run the inference server locally:
 
 ```bash
 f1_serve
 ```
+
+## Serving with Docker
+
+Build the image:
+
+```bash
+docker build --file Dockerfile.serve --tag f1-podium-predictor:latest .
+```
+
+Run the container, passing your LakeFS and MLflow connection details as environment variables. `host.docker.internal` resolves to the host machine from inside the container, allowing the server to reach the locally running Docker Compose services:
+
+```bash
+docker run --name f1-podium-predictor -d -p 8080:1234 \
+  -e LAKEFS_HOST=http://host.docker.internal:8000 \
+  -e LAKEFS_INSTALLATION_ACCESS_KEY_ID=[your key] \
+  -e LAKEFS_INSTALLATION_SECRET_ACCESS_KEY=[your secret] \
+  -e MLFLOW_TRACKING_URI=http://host.docker.internal:5000 \
+  -e MLFLOW_EXPERIMENT_NAME=f1-podium-predictor \
+  f1-podium-predictor:latest
+```
+
+The prediction UI is then available at http://localhost:8080/predict and the API at http://localhost:8080/docs.
