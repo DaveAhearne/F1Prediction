@@ -81,7 +81,7 @@ def train_single_fold(dataFrame: pd.DataFrame, runName: str, fold, X, y, train_y
         mlflow.log_metric("val_roc_auc", fold_auc)
         mlflow.log_metric("val_brier_score", fold_brier)
 
-        return model, fold_auc, fold_brier, preds, y_val_fold
+        return fold_auc, fold_brier, preds, y_val_fold
 
 def train_model_for_folds(X, y, dataFrame, folds, config) -> tuple[str, str]:
     run_name = config["run_name"]
@@ -107,7 +107,7 @@ def train_model_for_folds(X, y, dataFrame, folds, config) -> tuple[str, str]:
         all_preds, all_labels = [], []
 
         for fold, (train_years, val_years) in enumerate(folds):
-            model, fold_auc, fold_brier, preds, y_val_fold = train_single_fold(
+            fold_auc, fold_brier, preds, y_val_fold = train_single_fold(
                 dataFrame,
                 run_name,
                 fold,
@@ -128,11 +128,11 @@ def train_model_for_folds(X, y, dataFrame, folds, config) -> tuple[str, str]:
         mlflow.log_metric("mean_val_brier_score", np.mean(fold_briers))
         mlflow.log_metric("agg_val_roc_auc", agg_auc)
 
-        train_model_on_all_data(run_name, parent_run.info.run_id, X, y, model_params)
+        train_model_on_all_data(run_name, X, y, model_params)
 
         return run_name, parent_run.info.run_id
 
-def train_model_on_all_data(run_name, run_id, X, y, model_params):
+def train_model_on_all_data(run_name, X, y, model_params):
     final_model = lgb.LGBMClassifier(**model_params)
     final_model.fit(X, y)
 
