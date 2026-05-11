@@ -1,18 +1,13 @@
 import logging
-from pathlib import Path
 from fastapi import FastAPI
-from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 
-from f1_predictor.serve.logging import configure_logging, RequestIdMiddleware
+from f1_predictor.serve.log import configure_logging, RequestIdMiddleware
 from f1_predictor.serve.routes.health import router as health_router
 from f1_predictor.serve.routes.predict import router as predict_router
 from f1_predictor.serve.routes.home import router as home_router
 from f1_predictor.common.config import settings
 from f1_predictor.serve.startup import load_and_prepare_data, load_inference_model
-
-BASE_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 logger = logging.getLogger(__name__)
 
