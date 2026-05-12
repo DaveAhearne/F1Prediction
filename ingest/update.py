@@ -5,6 +5,16 @@ import lakefs
 import pandas as pd
 from lakefs.client import Client
 from f1_predictor.common.config import settings
+from dataclasses import dataclass
+
+@dataclass()
+class F1Data:
+    results: pd.DataFrame
+    constructors: pd.DataFrame
+    races: pd.DataFrame
+    statuses: pd.DataFrame
+    drivers: pd.DataFrame
+    circuits: pd.DataFrame
 
 class LakeFSRepository():
     def __init__(self):
@@ -44,21 +54,81 @@ class LakeFSRepository():
 class JolpicaRepository():
     API_URL_BASE = "https://api.jolpi.ca/ergast/f1"
 
-    def __init__(self, year, round):
-        self.year = year
-        self.round = round
-    
-    def get_api_data(self, year, section):
-        response = requests.get(f"{self.API_URL_BASE}/{year}/{section}?format=json")
+    def get_api_data(self, arguments):
+        response = requests.get(f"{self.API_URL_BASE}/{arguments}?format=json")
         response.raise_for_status()
         return response.json()
     
-    def get_constructor_data(self) -> pd.DataFrame:
-        data = self.get_api_data(self.year, "constructors")["MRData"]["ConstructorTable"]["Constructors"]
+    def get_driver_data(self, year) -> pd.DataFrame:
+        data = self.get_api_data(f"{year}/drivers")["MRData"]["DriverTable"]["Drivers"]
+        return pd.json_normalize(data)
+    
+    def get_constructor_data(self, year) -> pd.DataFrame:
+        data = self.get_api_data(f"{year}/constructors")["MRData"]["ConstructorTable"]["Constructors"]
         return pd.json_normalize(data)
 
-    def get_race_result_data(self):
-        return self.get_api_data(self.year, f"{self.round}/results")["MRData"]["RaceTable"]["Races"][0]
+    def get_race_data(self, year) -> pd.DataFrame:
+        data = self.get_api_data(f"{year}/races")["MRData"]["RaceTable"]["Races"]
+        return pd.json_normalize(data)
+    
+    def get_status_data(self) -> pd.DataFrame:
+        data = self.get_api_data("status")["MRData"]["StatusTable"]["Status"]
+        return pd.json_normalize(data)
+
+    def get_circuit_data(self) -> pd.DataFrame:
+        data = self.get_api_data("circuits")["MRData"]["CircuitTable"]["Circuits"]
+        return pd.json_normalize(data)
+
+    def get_next_race_results(self, year, round):
+        data = self.get_api_data(f"{year}/{round}/results")
+        
+        if data["MRData"]["RaceTable"]["Races"]:
+            return year, round, pd.json_normalize(data["MRData"]["RaceTable"]["Races"])
+        
+        data = self.get_api_data(year + 1, "1/results")
+        
+        if data["MRData"]["RaceTable"]["Races"]:
+            return year + 1, 1, pd.json_normalize(data["MRData"]["RaceTable"]["Races"])
+        
+        return None, None, None
+
+def get_data_from_lake()-> F1Data:
+    lakefs_repo = LakeFSRepository()
+
+    drivers = lakefs_repo.load_drivers()
+    constructors = lakefs_repo.load_constructors()
+    circuits = lakefs_repo.load_circuits()
+    status = lakefs_repo.load_statuses()
+    race = lakefs_repo.load_races()
+    res = lakefs_repo.load_results()
+
+    return F1Data(res, constructors, race, status, drivers, circuits)
+
+def get_data_from_api(lakefsData: F1Data) -> F1Data:
+    f1_api_repo = JolpicaRepository()
+
+    last_row = pd.merge(
+        left=lakefsData.results,
+        right=lakefsData.races,
+        how="left",
+        on="raceId"
+    ).sort_values(["year", "round"]).iloc[-1]
+
+    latest_year  = last_row["year"]
+    latest_round = last_row["round"] + 1
+
+    latest_year, latest_round, race_result_data = f1_api_repo.get_next_race_results(latest_year, latest_round)
+    constructor_data = f1_api_repo.get_constructor_data(latest_year)    
+    status_data = f1_api_repo.get_status_data()    
+    race_data = f1_api_repo.get_race_data(latest_year)    
+    driver_data = f1_api_repo.get_driver_data(latest_year)    
+    circuit_data = f1_api_repo.get_circuit_data()    
+
+    return F1Data(race_result_data, constructor_data, race_data, status_data, driver_data, circuit_data)
 
 def run():
-    print(JolpicaRepository(2025,1).get_constructor_data())
+    lake_data = get_data_from_lake()
+    api_data = get_data_from_api(lake_data)
+
+    print(api_data)
+    
