@@ -23,6 +23,7 @@ venv/
 env/
 ENV/
 .env
+.env.docker
 
 # ── pyproject / pip ────────────────────────────────────────────────────────────
 pip-log.txt

@@ -35,7 +35,30 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
+  prefect:
+    image: prefecthq/prefect:3-latest
+    container_name: f1-prefect
+    ports:
+      - "127.0.0.1:4200:4200"
+    depends_on:
+      lakefs:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+    volumes:
+      - prefect-data:/root/.prefect
+    command: prefect server start --host 0.0.0.0
+  prefect-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: f1-prefect-worker
+    depends_on:
+      - prefect
+    environment:
+      - PREFECT_API_URL=http://f1-prefect:4200/api
+    env_file: .env.docker
+    command: python src/f1_predictor/flows/pipeline_flow.py
   lakefs-setup:
     image: curlimages/curl:latest
     depends_on:
@@ -50,3 +73,4 @@ services:
 volumes:
   mlflow-data:
   lakefs-data:
+  prefect-data:

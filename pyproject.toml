@@ -39,6 +39,11 @@ dev = [
     "pytest",
     "ruff",
 ]
+flows = [
+    "prefect",
+    "evidently",
+    "shap",
+]
 
 [project.scripts]
 f1_serve = "f1_predictor.serve.api:main"
