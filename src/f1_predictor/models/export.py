@@ -4,6 +4,8 @@ import onnxmltools
 import mlflow
 import lightgbm as lgb
 import pandas as pd
+import tempfile
+import os
 from mlflow.models import infer_signature
 from onnxmltools.convert.common.data_types import FloatTensorType
 from f1_predictor.models import types
@@ -15,8 +17,16 @@ def convert_to_onnx(model: lgb.LGBMClassifier) -> onnx.ModelProto:
 
     return onnx_model
 
-def log_model_artifacts(model, X, run_name):
+def log_model_artifacts(model, X, y, run_name):
     mlflow.log_params(model.get_params())
+
+    reference = X.copy()
+    reference["podiumFinish"] = y.values
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = os.path.join(tmp_dir, "training_reference.parquet")
+        reference.to_parquet(tmp_path, index=False)
+        mlflow.log_artifact(tmp_path)
 
     output_sample = pd.DataFrame(
         model.predict_proba(X)[:, 1],

@@ -136,7 +136,7 @@ def train_model_on_all_data(run_name, X, y, model_params):
     final_model = lgb.LGBMClassifier(**model_params)
     final_model.fit(X, y)
 
-    version = export.log_model_artifacts(final_model, X, run_name)
+    version = export.log_model_artifacts(final_model, X, y, run_name)
 
     client = mlflow.MlflowClient()
     client.update_model_version(
@@ -156,3 +156,13 @@ def train_model_on_all_data(run_name, X, y, model_params):
         key="export_format",
         value="onnx"
     )
+
+    try:
+        client.get_model_version_by_alias(settings.mlflow_experiment_name, "champion")
+    except mlflow.exceptions.MlflowException:
+        client.set_registered_model_alias(
+            name=settings.mlflow_experiment_name,
+            alias="champion",
+            version=version.version
+        )
+        print("First model — champion alias set automatically")

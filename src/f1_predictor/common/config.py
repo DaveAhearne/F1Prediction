@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     lakefs_installation_secret_access_key:str
     lakefs_repo: str = "f1-race-data"
 
+    evidently_workspace_url: str = "http://localhost:8001"
+    evidently_project_id: str = ""
+
     mlflow_tracking_uri: str
     mlflow_experiment_name: str
 

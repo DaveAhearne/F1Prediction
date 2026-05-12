@@ -16,7 +16,6 @@ class F1ValidationSchema(pa.DataFrameModel):
     nationality: str
     race_name: str
     location: str
-    country: str
     status: str
     constructor_name: str
     podiumFinish: int = pa.Field(isin=[1,0])

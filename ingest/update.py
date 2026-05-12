@@ -207,7 +207,10 @@ def reconcile(lake_data: F1Data, api_data: F1Data, latest_round: int) -> F1Data:
     new_race["circuitId"] = new_race["Circuit.circuitId"].map(circuit_lookup)
 
     new_race = new_race.rename(columns={"season": "year", "raceName": "name"})
-    races = pd.concat([lake_data.races, new_race], ignore_index=True)
+    races = pd.concat(
+        [lake_data.races, new_race.reindex(columns=lake_data.races.columns)],
+        ignore_index=True
+    )
 
     results_flat = api_data.results.copy()
 
@@ -228,7 +231,10 @@ def reconcile(lake_data: F1Data, api_data: F1Data, latest_round: int) -> F1Data:
         lake_data.results["resultId"].max() + 1 + len(results_flat)
     )
 
-    results = pd.concat([lake_data.results, results_flat], ignore_index=True)
+    results = pd.concat(
+        [lake_data.results, results_flat.reindex(columns=lake_data.results.columns)],
+        ignore_index=True
+    )
 
     return F1Data(results, constructors, races, statuses, drivers, lake_data.circuits)
 

@@ -11,8 +11,13 @@ services:
       - MLFLOW_DEFAULT_ARTIFACT_ROOT=mlflow-artifacts:/artifacts
     volumes:
       - mlflow-data:/mlflow
-    command: mlflow server --host 0.0.0.0 --port 5000 --allowed-hosts "*"
-
+    command: >
+      mlflow server 
+      --host 0.0.0.0 
+      --port 5000 
+      --allowed-hosts "*"
+      --serve-artifacts
+      --artifacts-destination /mlflow/artifacts
   lakefs:
     image: treeverse/lakefs:latest
     container_name: f1-lakefs
@@ -38,6 +43,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+  lakefs-setup:
+    image: curlimages/curl:latest
+    depends_on:
+      lakefs:
+        condition: service_healthy
+    restart: on-failure
+    entrypoint: [
+      "sh", "-c",
+      "curl -X POST http://f1-lakefs:8000/api/v1/setup_lakefs -H 'Content-Type: application/json' -d '{\"username\":\"${LAKEFS_INSTALLATION_USER_NAME}\",\"key\":{\"access_key_id\":\"${LAKEFS_INSTALLATION_ACCESS_KEY_ID}\",\"secret_access_key\":\"${LAKEFS_INSTALLATION_SECRET_ACCESS_KEY}\"}}' && curl -X POST http://f1-lakefs:8000/api/v1/setup_comm_prefs -H 'Content-Type: application/json' -d '{\"email\":\"admin@f1predictor.com\",\"firstName\":\"Admin\",\"lastName\":\"User\",\"companyName\":\"F1Predictor\",\"featureUpdates\":false,\"securityUpdates\":false}'"
+    ]
   prefect:
     image: prefecthq/prefect:3-latest
     container_name: f1-prefect
@@ -58,22 +73,27 @@ services:
     container_name: f1-prefect-worker
     depends_on:
       - prefect
+      - lakefs
+      - mlflow
+      - evidently
     environment:
       - PREFECT_API_URL=http://f1-prefect:4200/api
     env_file: .env.docker
     command: python src/f1_predictor/flows/pipeline_flow.py
-  lakefs-setup:
-    image: curlimages/curl:latest
-    depends_on:
-      lakefs:
-        condition: service_healthy
-    restart: on-failure
-    entrypoint: [
-      "sh", "-c",
-      "curl -X POST http://f1-lakefs:8000/api/v1/setup_lakefs -H 'Content-Type: application/json' -d '{\"username\":\"${LAKEFS_INSTALLATION_USER_NAME}\",\"key\":{\"access_key_id\":\"${LAKEFS_INSTALLATION_ACCESS_KEY_ID}\",\"secret_access_key\":\"${LAKEFS_INSTALLATION_SECRET_ACCESS_KEY}\"}}' && curl -X POST http://f1-lakefs:8000/api/v1/setup_comm_prefs -H 'Content-Type: application/json' -d '{\"email\":\"admin@f1predictor.com\",\"firstName\":\"Admin\",\"lastName\":\"User\",\"companyName\":\"F1Predictor\",\"featureUpdates\":false,\"securityUpdates\":false}'"
-    ]
+  evidently:
+    build:
+      context: .
+      dockerfile: Dockerfile.evidently
+    container_name: f1-evidently
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - evidently-data:/evidently/workspace
+    env_file: .env.docker
+    restart: unless-stopped
 
 volumes:
   mlflow-data:
   lakefs-data:
   prefect-data:
+  evidently-data:
