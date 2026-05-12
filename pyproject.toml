@@ -27,6 +27,7 @@ train = [
     "scikit-learn",
     "notebook",
     "onnxmltools",
+    "onnxruntime",
 ]
 serv = [
     "fastapi",
