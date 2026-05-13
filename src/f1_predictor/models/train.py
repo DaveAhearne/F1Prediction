@@ -124,6 +124,7 @@ def train_model_for_folds(X, y, dataFrame, folds, config) -> tuple[str, str]:
 
         agg_auc = roc_auc_score(all_labels, all_preds)
 
+        mlflow.log_metric("training_race_count", dataFrame["raceId"].nunique())
         mlflow.log_metric("mean_val_roc_auc", np.mean(fold_aucs))
         mlflow.log_metric("mean_val_brier_score", np.mean(fold_briers))
         mlflow.log_metric("agg_val_roc_auc", agg_auc)

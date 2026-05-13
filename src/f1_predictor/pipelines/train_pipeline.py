@@ -12,7 +12,7 @@ def train_pipeline():
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
     mlflow.set_experiment(settings.mlflow_experiment_name)
 
-    df = prepare_data(min_year=1990, max_year=2025)
+    df = prepare_data(min_year=1990, max_year=None)
     validate.check_schema(df)
 
     lakefs_commit_sha = data_loaders.get_commit_sha()

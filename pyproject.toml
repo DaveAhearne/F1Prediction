@@ -50,5 +50,4 @@ flows = [
 f1_serve = "f1_predictor.serve.api:main"
 f1_bootstrap = "ingest.bootstrap:run"
 f1_update = "ingest.update:run"
-f1_eval = "f1_predictor.pipelines.eval_pipeline:eval_pipeline"
 f1_train = "f1_predictor.pipelines.train_pipeline:train_pipeline"
