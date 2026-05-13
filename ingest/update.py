@@ -250,7 +250,7 @@ def write_to_lakefs(data: F1Data, branch):
     except Exception as e:
         print(f"Transaction failed and rolled back: {e}")
 
-def run():
+def run() -> bool:
     lakefsRepo = LakeFSRepository()
     
     lake_data = get_data_from_lake(lakefsRepo)
@@ -258,7 +258,7 @@ def run():
 
     if latest_year is None:
         print("No new race data available")
-        return
+        return False
 
     print(f"Fetched data from: year {latest_year} round: {latest_round}")
     
@@ -284,3 +284,4 @@ def run():
 
     lakefsRepo.merge_into(source="staging", target="main", message=f"Merge validated race data to main: {latest_year} round {latest_round}")
     print("Merged to main")
+    return True

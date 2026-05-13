@@ -17,11 +17,18 @@ def convert_to_onnx(model: lgb.LGBMClassifier) -> onnx.ModelProto:
 
     return onnx_model
 
-def log_model_artifacts(model, X, y, run_name):
+def log_model_artifacts(model, X, y, data, run_name, last_n_races=72):
     mlflow.log_params(model.get_params())
-
-    reference = X.copy()
-    reference["podiumFinish"] = y.values
+    
+    last_n_race_ids = (
+        data[["raceId", "year", "round"]]
+        .drop_duplicates()
+        .sort_values(["year", "round"])
+        .tail(last_n_races)["raceId"]
+    )
+    recent_mask = data["raceId"].isin(last_n_race_ids)
+    reference = X[recent_mask].copy()
+    reference["podiumFinish"] = y[recent_mask].values
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = os.path.join(tmp_dir, "training_reference.parquet")

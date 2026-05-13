@@ -129,15 +129,15 @@ def train_model_for_folds(X, y, dataFrame, folds, config) -> tuple[str, str]:
         mlflow.log_metric("mean_val_brier_score", np.mean(fold_briers))
         mlflow.log_metric("agg_val_roc_auc", agg_auc)
 
-        train_model_on_all_data(run_name, X, y, model_params)
+        train_model_on_all_data(run_name, X, y, dataFrame, model_params)
 
         return run_name, parent_run.info.run_id
 
-def train_model_on_all_data(run_name, X, y, model_params):
+def train_model_on_all_data(run_name, X, y, dataFrame, model_params):
     final_model = lgb.LGBMClassifier(**model_params)
     final_model.fit(X, y)
 
-    version = export.log_model_artifacts(final_model, X, y, run_name)
+    version = export.log_model_artifacts(final_model, X, y, dataFrame, run_name)
 
     client = mlflow.MlflowClient()
     client.update_model_version(

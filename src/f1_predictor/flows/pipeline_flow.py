@@ -12,13 +12,14 @@ from f1_predictor.features.features import MODEL_FEATURES
 from f1_predictor.common.config import settings
 from evidently.pipeline.column_mapping import ColumnMapping
 
-DRIFT_EXCLUDE = ["year", "round", "driver_experience"]
+DRIFT_EXCLUDE = ["year", "round", "driver_experience", "grid_size", "regulation_era"]
 DRIFT_FEATURES = [f for f in MODEL_FEATURES if f not in DRIFT_EXCLUDE]
 REPORT_FEATURES = DRIFT_FEATURES + ["podiumFinish"]
+ALL_CATEGORICALS = ["driverId", "constructorId", "circuitId", "regulation_era", "is_home_race"]
 
 @task
-def ingest_new_data():
-    ingest_run()
+def ingest_new_data() -> bool:
+    return ingest_run()
 
 @task
 def build_full_frame() -> pd.DataFrame:
@@ -64,7 +65,7 @@ def get_reference_frame_from_champion() -> pd.DataFrame:
 def check_drift(current_df: pd.DataFrame, reference_df: pd.DataFrame) -> bool:
     column_mapping = ColumnMapping()
     column_mapping.target = "podiumFinish"
-    column_mapping.categorical_features = ["driverId", "constructorId", "circuitId", "regulation_era", "is_home_race"]
+    column_mapping.categorical_features = [f for f in ALL_CATEGORICALS if f in DRIFT_FEATURES]
     column_mapping.numerical_features = [
         f for f in DRIFT_FEATURES
         if f not in column_mapping.categorical_features
@@ -104,18 +105,32 @@ def should_force_retrain(full_df: pd.DataFrame) -> bool:
     return (current_race_count - training_race_count) >= 12
 
 @task
-def run_training():
+def run_training(reason: str):
+    print(f"Retraining triggered: {reason}")
     train_pipeline()
 
 @flow(name=settings.prefect_flow_name, log_prints=True)
 def f1_pipeline():
-    ingest_new_data()
+    has_new_data = ingest_new_data()
+    if not has_new_data:
+        print("No new race data — skipping drift check and training")
+        return
+
     full_df = build_full_frame()
     current_df = build_current_frame(full_df)
     reference_df = get_reference_frame_from_champion()
-    should_retrain = check_drift(current_df, reference_df) or should_force_retrain(full_df)
-    if should_retrain:
-        run_training()
+
+    drift_detected = check_drift(current_df, reference_df)
+    force_retrain = should_force_retrain(full_df)
+
+    if drift_detected and force_retrain:
+        run_training("drift detected and 12-race threshold reached")
+    elif drift_detected:
+        run_training("drift detected")
+    elif force_retrain:
+        run_training("12-race threshold reached")
+    else:
+        print("No retraining required")
 
 if __name__ == "__main__":
     f1_pipeline.serve(
