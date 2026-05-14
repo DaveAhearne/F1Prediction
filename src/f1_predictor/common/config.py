@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     lakefs_repo: str = "f1-race-data"
 
     evidently_workspace_url: str = "http://localhost:8001"
-    evidently_project_id: str = ""
+    evidently_project_name: str = "f1-podium-predictor"
 
     mlflow_tracking_uri: str
     mlflow_experiment_name: str

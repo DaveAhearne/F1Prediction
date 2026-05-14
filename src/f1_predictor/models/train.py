@@ -10,7 +10,7 @@ from datetime import datetime
 from f1_predictor.common.config import settings
 from f1_predictor.models import fold, export, types
 
-def train(data: pd.DataFrame, commit_sha) -> types.TrainingResult:
+def train(data: pd.DataFrame, commit_sha, lgbm_params) -> types.TrainingResult:
     folds = fold.generate_rolling_window_folds(data, train_window=10, val_window=1)
 
     X = data[features.MODEL_FEATURES]
@@ -30,15 +30,9 @@ def train(data: pd.DataFrame, commit_sha) -> types.TrainingResult:
         },
         "commit_sha": commit_sha,
         "model_params": {
-            'n_estimators': settings.train_n_estimators,
-            'learning_rate': settings.train_learning_rate,
-            'num_leaves': settings.train_num_leaves,
-            'min_child_samples': settings.train_min_child_samples,
-            'scale_pos_weight': settings.train_scale_pos_weight,
-            'subsample': settings.train_subsample,
-            'colsample_bytree': settings.train_colsample_bytree,
-            'objective': 'binary',
-            'verbose': -1
+            **lgbm_params,
+            "objective": "binary",
+            "verbose": -1
         }
     }
 

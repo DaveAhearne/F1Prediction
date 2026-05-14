@@ -6,7 +6,7 @@ from f1_predictor.models.train import train
 from f1_predictor.common.config import settings
 from f1_predictor.pipelines.prepare import prepare_data
 
-def train_pipeline():
+def train_pipeline(lgbm_params):
     warnings.filterwarnings("error", message="Hint: Inferred schema contains integer column")
     
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
@@ -17,5 +17,5 @@ def train_pipeline():
 
     lakefs_commit_sha = data_loaders.get_commit_sha()
 
-    result = train(data=df, commit_sha=lakefs_commit_sha)
+    result = train(data=df, commit_sha=lakefs_commit_sha, lgbm_params=lgbm_params)
     print(f"\nTraining finished: \n\tRun name: {result.run_name} \n\tRun id: {result.run_id}\n")
