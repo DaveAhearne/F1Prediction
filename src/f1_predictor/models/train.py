@@ -158,12 +158,9 @@ def train_model_on_all_data(run_name, X, y, dataFrame, model_params):
         value="onnx"
     )
 
-    try:
-        client.get_model_version_by_alias(settings.mlflow_experiment_name, "champion")
-    except mlflow.exceptions.MlflowException:
-        client.set_registered_model_alias(
-            name=settings.mlflow_experiment_name,
-            alias="champion",
-            version=version.version
-        )
-        print("First model — champion alias set automatically")
+    client.set_registered_model_alias(
+        name=settings.mlflow_experiment_name,
+        alias="champion",
+        version=version.version
+    )
+    print(f"Champion alias promoted to version {version.version}")
