@@ -18,6 +18,7 @@ Using historical race data from 1990 to present, we train a classification model
 2. Train a baseline model on raw features with data validation
 3. Iteratively engineer features and measure improvement
 4. Validate final model against 2025 season results
+5. Automate the full loop: ingest → validate → drift detection → conditional retraining → promotion
 
 ## Success Criteria
 Defined upfront to avoid p-hacking. The qualifying heuristic (AUC 0.93, Brier 0.059) was rejected as a baseline because it relies on same-weekend data and leaks significant signal — qualifying position already encodes car setup, tyre performance, and driver form. The true pre-weekend baseline is the rolling podium rate heuristic:
@@ -82,6 +83,17 @@ The trained model is exported to ONNX and served via a FastAPI application. At s
 
 The server is packaged as a Docker image. Because MLflow and LakeFS run locally via Docker Compose, `host.docker.internal` is used to reach them from inside the container.
 
+### Automated Pipeline
+A Prefect flow runs on a weekly cron schedule and orchestrates the full post-race loop:
+
+1. Ingest the latest race result from the Jolpica API into LakeFS via a staging branch
+2. Validate and merge to main
+3. Compute feature drift between the champion model's training distribution and the last 12 races using Evidently
+4. Retrain if drift is detected or if a configurable race count threshold has been reached since the last training run
+5. Promote the new model to the champion alias unconditionally — walk-forward cross-validation is the quality gate, not a post-hoc metric comparison
+
+Hyperparameters and retraining config are stored as Prefect Variables and seeded automatically at `docker compose up`.
+
 ## Results
 
 | Stage | Mean Val ROC-AUC | Agg Val ROC-AUC | Mean Val Brier Score | Notes |
@@ -94,7 +106,7 @@ The server is packaged as a Docker image. Because MLflow and LakeFS run locally 
 ```
 ├── ingest/                         # Data ingestion (runs independently of training)
 │   ├── bootstrap.py                # Initial load of raw CSVs into LakeFS
-│   ├── update.py                   # Incremental data updates
+│   ├── update.py                   # Incremental updates via Jolpica API with staging branch strategy
 │   └── settings.py                 # LakeFS connection settings
 ├── src/
 │   └── f1_predictor/
@@ -118,29 +130,37 @@ The server is packaged as a Docker image. Because MLflow and LakeFS run locally 
 │       │   └── types.py            # Shared types and constants
 │       ├── pipelines/
 │       │   ├── train_pipeline.py   # Orchestrates load → clean → validate → engineer → train
-│       │   └── eval_pipeline.py    # Orchestrates load → engineer → evaluate champion model
+│       │   └── prepare.py          # Shared data preparation used by training and serving
+│       ├── flows/
+│       │   └── pipeline_flow.py    # Prefect flow: ingest → drift check → conditional retrain
 │       └── serve/
 │           ├── api.py              # FastAPI app with lifespan startup
 │           ├── startup.py          # Data preparation and model loading at startup
 │           ├── clients.py          # LakeFS and MLflow client wrappers
 │           ├── prepare.py          # Inference request handling and feature extrapolation
 │           ├── inference.py        # ONNX inference session wrapper
-│           ├── template_env.py     # Jinja2 template configuration
+│           ├── log.py              # Logging configuration and request ID middleware
+│           ├── templates_env.py    # Jinja2 template configuration
 │           ├── templates/
 │           │   └── home.html       # Prediction UI
 │           └── routes/
 │               ├── health.py       # GET /health
+│               ├── home.py         # GET / (redirect)
 │               └── predict.py      # GET|POST /predict
 ├── notebooks/                      # Exploratory and iterative work
 ├── Dockerfile.serve                # Docker image for the inference server
-├── docker-compose.yml              # MLflow and LakeFS services
-├── .env                            # Local config and hyperparameters (not committed)
+├── Dockerfile.worker               # Docker image for the Prefect worker
+├── Dockerfile.evidently            # Docker image for the Evidently UI
+├── docker-compose.yml              # Full local stack: MLflow, LakeFS, Prefect, Evidently
+├── .env                            # Local config for running outside Docker (not committed)
+├── .env.docker                     # Config for services running inside Docker Compose (not committed)
+├── .env.example                    # Template for both env files
 └── pyproject.toml
 ```
 
 ## Infrastructure
 
-MLflow and LakeFS run locally via Docker Compose. Both services persist data to named volumes so runs survive restarts.
+The full stack runs via Docker Compose. All services persist data to named volumes so state survives restarts. On first start, `lakefs-setup` and `prefect-setup` containers run automatically to initialise LakeFS and seed Prefect Variables.
 
 ```bash
 docker compose up
@@ -150,50 +170,41 @@ docker compose up
 |---------|-----|
 | MLflow tracking UI | http://localhost:5000 |
 | LakeFS UI | http://localhost:8000 |
+| Prefect UI | http://localhost:4200 |
+| Evidently UI | http://localhost:8001 |
 
 ## Setup
 
-Install dependencies:
+Install dependencies (only needed for local development outside Docker):
 
 ```bash
 pip install -e ".[train,data,dev]"
 ```
 
-Copy `.env.example` to `.env` and fill in your LakeFS credentials and MLflow URI.
+Copy `.env.example` to `.env` (for local development) and to `.env.docker` (for the Docker Compose stack). Fill in your LakeFS credentials, MLflow URI, and Prefect Variable values in both.
 
-Bootstrap data into LakeFS (first run only):
+Download the raw CSVs from [Kaggle](https://www.kaggle.com/datasets/jtrotman/formula-1-race-data) and place them in `./data/`.
 
-```bash
-f1_bootstrap
-```
-
-Run the training pipeline:
+Bring up the full stack:
 
 ```bash
-f1_train
+docker compose up
 ```
 
-Evaluate the champion model against the 2025 test set:
+On first start:
+- `lakefs-setup` initialises the LakeFS instance automatically
+- `bootstrap` uploads the raw CSVs from `./data/` into LakeFS
+- `prefect-setup` seeds the `lgbm_hyperparameters` and `retraining_config` Prefect Variables
 
-```bash
-f1_eval
-```
-
-Run the inference server locally:
-
-```bash
-f1_serve
-```
+Once the stack is running, trigger the first flow run manually from the Prefect UI at http://localhost:4200. The flow detects that no champion model exists and runs the initial training. From then on the cron schedule takes over.
 
 ## Serving with Docker
 
-Build the image:
+The inference server can also be run standalone outside of the Compose stack:
 
 ```bash
 docker build --file Dockerfile.serve --tag f1-podium-predictor:latest .
 ```
-
-Run the container, passing your LakeFS and MLflow connection details as environment variables. `host.docker.internal` resolves to the host machine from inside the container, allowing the server to reach the locally running Docker Compose services:
 
 ```bash
 docker run --name f1-podium-predictor -d -p 8080:1234 \

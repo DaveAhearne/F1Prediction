@@ -16,14 +16,6 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str
     mlflow_experiment_name: str
 
-    train_n_estimators: int = 0
-    train_learning_rate: float = 0.0
-    train_num_leaves: int = 0
-    train_min_child_samples: int = 0
-    train_scale_pos_weight: float = 0.0
-    train_subsample: float = 0.0
-    train_colsample_bytree: float = 0.0
-
     prefect_api_url: str = "http://localhost:4200/api"
     prefect_flow_name: str = "f1-pipeline"
     prefect_cron_schedule: str = "0 18 * * 0"
